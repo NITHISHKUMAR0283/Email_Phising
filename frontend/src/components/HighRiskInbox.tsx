@@ -31,7 +31,7 @@ export default function HighRiskInbox() {
     setLoading(true);
     setError('');
     try {
-      const res = await axios.get('https://email-phising.onrender.com/fetch-high-risk-emails', { withCredentials: true });
+      const res = await axios.get('http://localhost:8000/fetch-high-risk-emails', { withCredentials: true });
       setEmails(res.data as any[]);
     } catch (e: any) {
       setError('Failed to fetch emails. Please sign in with Google.');
@@ -65,7 +65,7 @@ export default function HighRiskInbox() {
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-2xl font-bold text-gray-800">Top 10 Security Threats</h2>
         <button
-          onClick={() => window.location.href = 'https://email-phising.onrender.com/login'}
+          onClick={() => window.location.href = 'http://localhost:8000/login'}
           className="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700"
         >
           Sign in with Google

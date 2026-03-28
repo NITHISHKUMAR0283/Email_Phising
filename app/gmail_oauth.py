@@ -14,7 +14,7 @@ from typing import Dict, Any
 
 CLIENT_ID = "685356081512-k89ps7iino08oqlc2bipvt73eqar3apo.apps.googleusercontent.com"
 CLIENT_SECRET = "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"
-REDIRECT_URI = "https://email-phising.onrender.com/oauth2callback"
+REDIRECT_URI = "http://localhost:8000/oauth2callback"
 SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 
 router = APIRouter()
@@ -55,7 +55,7 @@ def oauth2callback(request: Request, code_verifier: str = Cookie(None)):
     credentials = flow.credentials
     user_tokens["access_token"] = credentials.token
     # Clear the code_verifier cookie
-    response = RedirectResponse("https://email-phising.vercel.app/")
+    response = RedirectResponse("http://localhost:5173/")
     response.delete_cookie("code_verifier")
     return response
 
