@@ -14,7 +14,7 @@ from typing import Dict, Any
 
 CLIENT_ID = "685356081512-k89ps7iino08oqlc2bipvt73eqar3apo.apps.googleusercontent.com"
 CLIENT_SECRET = "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"
-REDIRECT_URI = "http://localhost:8000/oauth2callback"
+REDIRECT_URI = "https://email-phising.onrender.com/oauth2callback"
 SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 
 router = APIRouter()
