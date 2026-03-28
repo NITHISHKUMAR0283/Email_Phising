@@ -55,7 +55,7 @@ def oauth2callback(request: Request, code_verifier: str = Cookie(None)):
     credentials = flow.credentials
     user_tokens["access_token"] = credentials.token
     # Clear the code_verifier cookie
-    response = RedirectResponse("https://email-phising.onrender.com/")
+    response = RedirectResponse("https://email-phising.vercel.app/")
     response.delete_cookie("code_verifier")
     return response
 
