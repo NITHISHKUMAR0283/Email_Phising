@@ -1,12 +1,33 @@
-import React, { useState } from 'react';
-// Quiz endpoints are no longer supported in the backend
 
+import React from 'react';
 
-export default function Quiz() {
-  return (
-    <div className="w-full max-w-xl bg-white shadow rounded p-6 mb-8">
-      <h2 className="text-xl font-semibold mb-4">Phishing Awareness Quiz</h2>
-      <div className="text-gray-600">Quiz functionality is not available in this version.</div>
-    </div>
-  );
+interface QuizProps {
+  quiz: Array<{
+    question: string;
+    options: string[];
+    correct: string[];
+  }>;
 }
+
+const Quiz: React.FC<QuizProps> = ({ quiz }) => (
+  <div className="w-full bg-gray-50 rounded shadow p-4">
+    <h3 className="font-bold mb-2">Phishing Awareness Quiz</h3>
+    {quiz.map((q, i) => (
+      <div key={i} className="mb-4">
+        <div className="mb-1">{q.question}</div>
+        <ul>
+          {q.options.map((opt, j) => (
+            <li key={j} className="ml-4 list-disc">
+              {opt}
+              {q.correct.includes(opt) && (
+                <span className="ml-2 text-green-600 font-semibold">(Correct)</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+    ))}
+  </div>
+);
+
+export default Quiz;

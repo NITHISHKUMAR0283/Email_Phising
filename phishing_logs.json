@@ -1,0 +1,807 @@
+[
+  {
+    "risk_score": "High",
+    "highlighted_tokens": [
+      "urgent"
+    ],
+    "heuristics": [
+      "Suspicious phrase: urgent"
+    ],
+    "quiz": [
+      {
+        "question": "Which phrase indicates phishing?",
+        "options": [
+          "urgent",
+          "Hello",
+          "Thank you"
+        ],
+        "correct": [
+          "urgent"
+        ]
+      }
+    ],
+    "timestamp": "2026-03-28T08:47:34.029945",
+    "subject": "",
+    "sender": "",
+    "email_text": "\n\nSkip to content\nUsing Gmail with screen readers\n1 of 1,113\nNithish Kumar, Urgent Requirement for the role of Intern\nInbox\nSummarize this email\n\nNaukri Campus Jobs <recommendationnc@naukri.com>\nFri, Mar 27, 3:14\u202fPM (23 hours ago)\nto me\n\n\nnaukri.com\nGet App\n\t\nYour weekend opportunities are right here!\n\nFront End Developer Intern\nZuntra Digital\t\t\t3.1\n\t\nNo fixed duration\nInternship\t\n\nFrontend Intern\nPerfex Technologies\t\t\t3.9\n\t\nNo fixed duration\nInternship\t\n\nReact Development Intern\nCehpoint E-Learning...\t\n\t\nNo fixed duration\nInternship\t\nAre these jobs relevant?\t\t\nYes\nNo\n\nWeb Development Intern\nInnovexis\t\n\t\n6 months duration\nInternship\t\n\nFull Stack Intern\nArtpark\t\t\t4.3\n\t\n6 months duration\nInternship\t\nView All Recommendations\nApplies are a click away on the Naukri app\nAvailable on\t\t\nGet App\n\nScan to download\nFacebook\t\tTwitter\t\tInstagram\nUnsubscribe\t\t\t\tReport a Problem\nYou have received this mail because your e-mail ID is registered with Naukri.com. This is a system-generated e-mail regarding your Naukri account preferences, please don't reply to this message. The jobs sent in this mail have been posted by the clients of Naukri.com. And we have enabled auto-login for your convenience, you are strongly advised not to forward this email to protect your account from unauthorized access. IEIL has taken all reasonable steps to ensure that the information in this mailer is authentic. Users are advised to research bonafides of advertisers independently. Please do not pay any money to anyone who promises to find you a job. IEIL shall not have any responsibility in this regard. We recommend that you visit our Terms & Conditions and the Security Advice for more comprehensive information.\n",
+    "urls": [],
+    "headers": {}
+  },
+  {
+    "risk_score": "High",
+    "highlighted_tokens": [],
+    "heuristics": [],
+    "quiz": [],
+    "timestamp": "2026-03-28T08:48:00.689642",
+    "subject": "",
+    "sender": "",
+    "email_text": "\n\nSkip to content\nUsing Gmail with screen readers\n2 of 1,113\nExtended Just for You | Code for Purpose 2026\nInbox\n\nTeam Unstop <noreply@unstop.news> Unsubscribe\nFri, Mar 27, 1:39\u202fPM (1 day ago)\nto me\n\n\nHi Nithishkumar,\n\nWe\u2019ve extended Code for Purpose 2026 by NatWest and this window is open just for you.\n\nIf this was something you were considering earlier, you still have a chance to be a part of it.\n\nRegister Now\n\nWhat\u2019s in it for you:\n\nPre-Placement Interview opportunity with NatWest\n\u20b93,25,000+ rewards\niPads & certificate\nInteraction with NatWest leadership\nNot everyone gets this opportunity again - make it count.\n\nBest regards,\nTeam Code for Purpose 2026\n\n\n\n\n\nThis email was sent to asnrnithishjee@gmail.com because you subscribed to updates from Unstop. If you no longer wish to receive these emails, unsubscribe here.\n\n",
+    "urls": [],
+    "headers": {}
+  },
+  {
+    "risk_score": "High",
+    "highlighted_tokens": [],
+    "heuristics": [],
+    "quiz": [],
+    "timestamp": "2026-03-28T08:48:21.603950",
+    "subject": "",
+    "sender": "",
+    "email_text": "\n\nSkip to content\nUsing Gmail with screen readers\n2 of 1,113\nExtended Just for You | Code for Purpose 2026\nInbox\n\nTeam Unstop <noreply@unstop.news> Unsubscribe\nFri, Mar 27, 1:39\u202fPM (1 day ago)\nto me\n\n\nHi Nithishkumar,\n\nWe\u2019ve extended Code for Purpose 2026 by NatWest and this window is open just for you.\n\nIf this was something you were considering earlier, you still have a chance to be a part of it.\n\nRegister Now\n\nWhat\u2019s in it for you:\n\nPre-Placement Interview opportunity with NatWest\nInteraction with NatWest leadership\nNot everyone gets this opportunity again - make it count.\n\nBest regards,\nTeam Code for Purpose 2026\n\n\n\n\n\nThis email was sent to asnrnithishjee@gmail.com because you subscribed to updates from Unstop. If you no longer wish to receive these emails, unsubscribe here.\n\n",
+    "urls": [],
+    "headers": {}
+  },
+  {
+    "risk_score": "High",
+    "highlighted_tokens": [
+      "deadline"
+    ],
+    "heuristics": [
+      "Suspicious phrase: deadline"
+    ],
+    "quiz": [
+      {
+        "question": "Which phrase indicates phishing?",
+        "options": [
+          "Hello",
+          "Thank you",
+          "deadline"
+        ],
+        "correct": [
+          "deadline"
+        ]
+      }
+    ],
+    "timestamp": "2026-03-28T08:48:48.338260",
+    "subject": "",
+    "sender": "",
+    "email_text": "DevfolioBase Batches\nHey NithishKumar,\nThings are moving quickly right now, and most of it is being driven by builders who are already in it. From robotics experiments moving into real environments, to students collaborating across the world, ideas are turning into something real.\n\nHere's what's live:\n\nBase Batches 003\n\nBase Batches is live with dedicated tracks for different kinds of builders.\n\nRobotics Track (Powered by Virtuals)\n\nFor builders exploring robotics use cases, designed to accelerate high-conviction teams building at the intersection of embodied systems and onchain coordination.\nWhat you get:\n\nAccess to a Robotics Lab housing ~30 Unitree G1 humanoids (all expenses paid, up to $10K)\nOpportunity to participate in Demo Day at Network School\n$50K investment per team for three Demo Day winners\nHappening: Online\nDeadline: March 30, 2026\nApply now \u2192 base-batches-robotics-track.devfolio.co\n\nStudent Track\n\nDesigned for undergraduate student builders worldwide to collaborate across universities and turn ideas into real products.\nWhat you get:\n\nPitch at Demo Day in San Francisco\nOpportunity for $50K investment from the Base Ecosystem Fund\nMentorship and ecosystem support\nHappening: Online\nDeadline: April 27, 2026\nApply now \u2192 base-batches-student-track-3.devfolio.co\nWhether you're building with a team, exploring new ideas, or just getting started, there's something here for you.\n\nNever Stop Building,\nTeam Devfolio\n\n\u00a9 2026, NSB Classic PTE LTD\n\nPrefer not to receive emails about upcoming hackathons? Update preferences here or unsubscribe.",
+    "urls": [],
+    "headers": {}
+  },
+  {
+    "risk_score": "High",
+    "highlighted_tokens": [
+      "deadline"
+    ],
+    "heuristics": [
+      "Suspicious phrase: deadline"
+    ],
+    "quiz": [
+      {
+        "question": "Which phrase indicates phishing?",
+        "options": [
+          "Thank you",
+          "Hello",
+          "deadline"
+        ],
+        "correct": [
+          "deadline"
+        ]
+      }
+    ],
+    "timestamp": "2026-03-28T08:51:16.075421",
+    "subject": "",
+    "sender": "",
+    "email_text": "DevfolioBase Batches\nHey NithishKumar,\nThings are moving quickly right now, and most of it is being driven by builders who are already in it. From robotics experiments moving into real environments, to students collaborating across the world, ideas are turning into something real.\n\nHere's what's live:\n\nBase Batches 003\n\nBase Batches is live with dedicated tracks for different kinds of builders.\n\nRobotics Track (Powered by Virtuals)\n\nFor builders exploring robotics use cases, designed to accelerate high-conviction teams building at the intersection of embodied systems and onchain coordination.\nWhat you get:\n\nAccess to a Robotics Lab housing ~30 Unitree G1 humanoids (all expenses paid, up to $10K)\nOpportunity to participate in Demo Day at Network School\n$50K investment per team for three Demo Day winners\nHappening: Online\nDeadline: March 30, 2026\nApply now \u2192 base-batches-robotics-track.devfolio.co\n\nStudent Track\n\nDesigned for undergraduate student builders worldwide to collaborate across universities and turn ideas into real products.\nWhat you get:\n\nPitch at Demo Day in San Francisco\nOpportunity for $50K investment from the Base Ecosystem Fund\nMentorship and ecosystem support\nHappening: Online\nDeadline: April 27, 2026\nApply now \u2192 base-batches-student-track-3.devfolio.co\nWhether you're building with a team, exploring new ideas, or just getting started, there's something here for you.\n\nNever Stop Building,\nTeam Devfolio\n\n\u00a9 2026, NSB Classic PTE LTD\n\nPrefer not to receive emails about upcoming hackathons? Update preferences here or unsubscribe.",
+    "urls": [],
+    "headers": {}
+  },
+  {
+    "risk_score": "High",
+    "highlighted_tokens": [
+      "deadline"
+    ],
+    "heuristics": [
+      "Suspicious phrase: deadline"
+    ],
+    "quiz": [
+      {
+        "question": "Which phrase indicates phishing?",
+        "options": [
+          "Thank you",
+          "deadline",
+          "Hello"
+        ],
+        "correct": [
+          "deadline"
+        ]
+      }
+    ],
+    "timestamp": "2026-03-28T08:53:11.343450",
+    "subject": "",
+    "sender": "",
+    "email_text": "DevfolioBase Batches\nHey NithishKumar,\nThings are moving quickly right now, and most of it is being driven by builders who are already in it. From robotics experiments moving into real environments, to students collaborating across the world, ideas are turning into something real.\n\nHere's what's live:\n\nBase Batches 003\n\nBase Batches is live with dedicated tracks for different kinds of builders.\n\nRobotics Track (Powered by Virtuals)\n\nFor builders exploring robotics use cases, designed to accelerate high-conviction teams building at the intersection of embodied systems and onchain coordination.\nWhat you get:\n\nAccess to a Robotics Lab housing ~30 Unitree G1 humanoids (all expenses paid, up to $10K)\nOpportunity to participate in Demo Day at Network School\n$50K investment per team for three Demo Day winners\nHappening: Online\nDeadline: March 30, 2026\nApply now \u2192 base-batches-robotics-track.devfolio.co\n\nStudent Track\n\nDesigned for undergraduate student builders worldwide to collaborate across universities and turn ideas into real products.\nWhat you get:\n\nPitch at Demo Day in San Francisco\nOpportunity for $50K investment from the Base Ecosystem Fund\nMentorship and ecosystem support\nHappening: Online\nDeadline: April 27, 2026\nApply now \u2192 base-batches-student-track-3.devfolio.co\nWhether you're building with a team, exploring new ideas, or just getting started, there's something here for you.\n\nNever Stop Building,\nTeam Devfolio\n\n\u00a9 2026, NSB Classic PTE LTD\n\nPrefer not to receive emails about upcoming hackathons? Update preferences here or unsubscribe.",
+    "urls": [],
+    "headers": {}
+  },
+  {
+    "risk_score": "Medium",
+    "highlighted_tokens": [
+      "deadline"
+    ],
+    "heuristics": [
+      "Suspicious phrase: deadline"
+    ],
+    "quiz": [
+      {
+        "question": "Which phrase indicates phishing?",
+        "options": [
+          "deadline",
+          "Hello",
+          "Thank you"
+        ],
+        "correct": [
+          "deadline"
+        ]
+      }
+    ],
+    "timestamp": "2026-03-28T08:53:46.951524",
+    "subject": "",
+    "sender": "",
+    "email_text": "DevfolioBase Batches\nHey NithishKumar,\nThings are moving quickly right now, and most of it is being driven by builders who are already in it. From robotics experiments moving into real environments, to students collaborating across the world, ideas are turning into something real.\n\nHere's what's live:\n\nBase Batches 003\n\nBase Batches is live with dedicated tracks for different kinds of builders.\n\nRobotics Track (Powered by Virtuals)\n\nFor builders exploring robotics use cases, designed to accelerate high-conviction teams building at the intersection of embodied systems and onchain coordination.\nWhat you get:\n\nAccess to a Robotics Lab housing ~30 Unitree G1 humanoids (all expenses paid, up to $10K)\nOpportunity to participate in Demo Day at Network School\n$50K investment per team for three Demo Day winners\nHappening: Online\nDeadline: March 30, 2026\nApply now \u2192 base-batches-robotics-track.devfolio.co\n\nStudent Track\n\nDesigned for undergraduate student builders worldwide to collaborate across universities and turn ideas into real products.\nWhat you get:\n\nPitch at Demo Day in San Francisco\nOpportunity for $50K investment from the Base Ecosystem Fund\nMentorship and ecosystem support\nHappening: Online\nDeadline: April 27, 2026\nApply now \u2192 base-batches-student-track-3.devfolio.co\nWhether you're building with a team, exploring new ideas, or just getting started, there's something here for you.\n\nNever Stop Building,\nTeam Devfolio\n\n\u00a9 2026, NSB Classic PTE LTD\n\nPrefer not to receive emails about upcoming hackathons? Update preferences here or unsubscribe.",
+    "urls": [],
+    "headers": {}
+  },
+  {
+    "risk_score": "High",
+    "highlighted_tokens": [
+      "deadline"
+    ],
+    "heuristics": [
+      "Suspicious phrase: deadline"
+    ],
+    "quiz": [
+      {
+        "question": "Which phrase indicates phishing?",
+        "options": [
+          "deadline",
+          "Thank you",
+          "Hello"
+        ],
+        "correct": [
+          "deadline"
+        ]
+      }
+    ],
+    "timestamp": "2026-03-28T08:54:10.915707",
+    "subject": "",
+    "sender": "",
+    "email_text": "DevfolioBase Batches\nHey NithishKumar,\nThings are moving quickly right now, and most of it is being driven by builders who are already in it. From robotics experiments moving into real environments, to students collaborating across the world, ideas are turning into something real.\n\nHere's what's live:\n\nBase Batches 003\n\nBase Batches is live with dedicated tracks for different kinds of builders.\n\nRobotics Track (Powered by Virtuals)\n\nFor builders exploring robotics use cases, designed to accelerate high-conviction teams building at the intersection of embodied systems and onchain coordination.\nWhat you get:\n\nAccess to a Robotics Lab housing ~30 Unitree G1 humanoids (all expenses paid, up to $10K)\nOpportunity to participate in Demo Day at Network School\n$50K investment per team for three Demo Day winners\nHappening: Online\nDeadline: March 30, 2026\nApply now \u2192 base-batches-robotics-track.devfolio.co\n\nStudent Track\n\nDesigned for undergraduate student builders worldwide to collaborate across universities and turn ideas into real products.\nWhat you get:\n\nPitch at Demo Day in San Francisco\nOpportunity for $50K investment from the Base Ecosystem Fund\nMentorship and ecosystem support\nHappening: Online\nDeadline: April 27, 2026\nApply now \u2192 base-batches-student-track-3.devfolio.co\nWhether you're building with a team, exploring new ideas, or just getting started, there's something here for you.\n\nNever Stop Building,\nTeam Devfolio\n\n\u00a9 2026, NSB Classic PTE LTD\n\nPrefer not to receive emails about upcoming hackathons? Update preferences here or unsubscribe.",
+    "urls": [],
+    "headers": {}
+  },
+  {
+    "risk_score": "High",
+    "highlighted_tokens": [
+      "deadline"
+    ],
+    "heuristics": [
+      "Suspicious phrase: deadline"
+    ],
+    "quiz": [
+      {
+        "question": "Which phrase indicates phishing?",
+        "options": [
+          "Thank you",
+          "Hello",
+          "deadline"
+        ],
+        "correct": [
+          "deadline"
+        ]
+      }
+    ],
+    "timestamp": "2026-03-28T08:54:11.429713",
+    "subject": "",
+    "sender": "",
+    "email_text": "DevfolioBase Batches\nHey NithishKumar,\nThings are moving quickly right now, and most of it is being driven by builders who are already in it. From robotics experiments moving into real environments, to students collaborating across the world, ideas are turning into something real.\n\nHere's what's live:\n\nBase Batches 003\n\nBase Batches is live with dedicated tracks for different kinds of builders.\n\nRobotics Track (Powered by Virtuals)\n\nFor builders exploring robotics use cases, designed to accelerate high-conviction teams building at the intersection of embodied systems and onchain coordination.\nWhat you get:\n\nAccess to a Robotics Lab housing ~30 Unitree G1 humanoids (all expenses paid, up to $10K)\nOpportunity to participate in Demo Day at Network School\n$50K investment per team for three Demo Day winners\nHappening: Online\nDeadline: March 30, 2026\nApply now \u2192 base-batches-robotics-track.devfolio.co\n\nStudent Track\n\nDesigned for undergraduate student builders worldwide to collaborate across universities and turn ideas into real products.\nWhat you get:\n\nPitch at Demo Day in San Francisco\nOpportunity for $50K investment from the Base Ecosystem Fund\nMentorship and ecosystem support\nHappening: Online\nDeadline: April 27, 2026\nApply now \u2192 base-batches-student-track-3.devfolio.co\nWhether you're building with a team, exploring new ideas, or just getting started, there's something here for you.\n\nNever Stop Building,\nTeam Devfolio\n\n\u00a9 2026, NSB Classic PTE LTD\n\nPrefer not to receive emails about upcoming hackathons? Update preferences here or unsubscribe.",
+    "urls": [],
+    "headers": {}
+  },
+  {
+    "risk_score": "Medium",
+    "highlighted_tokens": [
+      "deadline"
+    ],
+    "heuristics": [
+      "Suspicious phrase: deadline"
+    ],
+    "quiz": [
+      {
+        "question": "Which phrase indicates phishing?",
+        "options": [
+          "Thank you",
+          "deadline",
+          "Hello"
+        ],
+        "correct": [
+          "deadline"
+        ]
+      }
+    ],
+    "timestamp": "2026-03-28T08:54:47.520611",
+    "subject": "",
+    "sender": "",
+    "email_text": "DevfolioBase Batches\nHey NithishKumar,\nThings are moving quickly right now, and most of it is being driven by builders who are already in it. From robotics experiments moving into real environments, to students collaborating across the world, ideas are turning into something real.\n\nHere's what's live:\n\nBase Batches 003\n\nBase Batches is live with dedicated tracks for different kinds of builders.\n\nRobotics Track (Powered by Virtuals)\n\nFor builders exploring robotics use cases, designed to accelerate high-conviction teams building at the intersection of embodied systems and onchain coordination.\nWhat you get:\n\nAccess to a Robotics Lab housing ~30 Unitree G1 humanoids (all expenses paid, up to $10K)\nOpportunity to participate in Demo Day at Network School\n$50K investment per team for three Demo Day winners\nHappening: Online\nDeadline: March 30, 2026\nApply now \u2192 base-batches-robotics-track.devfolio.co\n\nStudent Track\n\nDesigned for undergraduate student builders worldwide to collaborate across universities and turn ideas into real products.\nWhat you get:\n\nPitch at Demo Day in San Francisco\nOpportunity for $50K investment from the Base Ecosystem Fund\nMentorship and ecosystem support\nHappening: Online\nDeadline: April 27, 2026\nApply now \u2192 base-batches-student-track-3.devfolio.co\nWhether you're building with a team, exploring new ideas, or just getting started, there's something here for you.\n\nNever Stop Building,\nTeam Devfolio\n\n\u00a9 2026, NSB Classic PTE LTD\n\nPrefer not to receive emails about upcoming hackathons? Update preferences here or unsubscribe.",
+    "urls": [],
+    "headers": {}
+  },
+  {
+    "risk_score": "Medium",
+    "highlighted_tokens": [
+      "deadline"
+    ],
+    "heuristics": [
+      "Suspicious phrase: deadline"
+    ],
+    "quiz": [
+      {
+        "question": "Which phrase indicates phishing?",
+        "options": [
+          "deadline",
+          "Hello",
+          "Thank you"
+        ],
+        "correct": [
+          "deadline"
+        ]
+      }
+    ],
+    "timestamp": "2026-03-28T08:54:49.112157",
+    "subject": "",
+    "sender": "",
+    "email_text": "DevfolioBase Batches\nHey NithishKumar,\nThings are moving quickly right now, and most of it is being driven by builders who are already in it. From robotics experiments moving into real environments, to students collaborating across the world, ideas are turning into something real.\n\nHere's what's live:\n\nBase Batches 003\n\nBase Batches is live with dedicated tracks for different kinds of builders.\n\nRobotics Track (Powered by Virtuals)\n\nFor builders exploring robotics use cases, designed to accelerate high-conviction teams building at the intersection of embodied systems and onchain coordination.\nWhat you get:\n\nAccess to a Robotics Lab housing ~30 Unitree G1 humanoids (all expenses paid, up to $10K)\nOpportunity to participate in Demo Day at Network School\n$50K investment per team for three Demo Day winners\nHappening: Online\nDeadline: March 30, 2026\nApply now \u2192 base-batches-robotics-track.devfolio.co\n\nStudent Track\n\nDesigned for undergraduate student builders worldwide to collaborate across universities and turn ideas into real products.\nWhat you get:\n\nPitch at Demo Day in San Francisco\nOpportunity for $50K investment from the Base Ecosystem Fund\nMentorship and ecosystem support\nHappening: Online\nDeadline: April 27, 2026\nApply now \u2192 base-batches-student-track-3.devfolio.co\nWhether you're building with a team, exploring new ideas, or just getting started, there's something here for you.\n\nNever Stop Building,\nTeam Devfolio\n\n\u00a9 2026, NSB Classic PTE LTD\n\nPrefer not to receive emails about upcoming hackathons? Update preferences here or unsubscribe.",
+    "urls": [],
+    "headers": {}
+  },
+  {
+    "risk_score": "Medium",
+    "highlighted_tokens": [
+      "deadline"
+    ],
+    "heuristics": [
+      "Suspicious phrase: deadline"
+    ],
+    "quiz": [
+      {
+        "question": "Which phrase indicates phishing?",
+        "options": [
+          "deadline",
+          "Hello",
+          "Thank you"
+        ],
+        "correct": [
+          "deadline"
+        ]
+      }
+    ],
+    "timestamp": "2026-03-28T08:54:54.475110",
+    "subject": "",
+    "sender": "",
+    "email_text": "DevfolioBase Batches\nHey NithishKumar,\nThings are moving quickly right now, and most of it is being driven by builders who are already in it. From robotics experiments moving into real environments, to students collaborating across the world, ideas are turning into something real.\n\nHere's what's live:\n\nBase Batches 003\n\nBase Batches is live with dedicated tracks for different kinds of builders.\n\nRobotics Track (Powered by Virtuals)\n\nFor builders exploring robotics use cases, designed to accelerate high-conviction teams building at the intersection of embodied systems and onchain coordination.\nWhat you get:\n\nAccess to a Robotics Lab housing ~30 Unitree G1 humanoids (all expenses paid, up to $10K)\nOpportunity to participate in Demo Day at Network School\n$50K investment per team for three Demo Day winners\nHappening: Online\nDeadline: March 30, 2026\nApply now \u2192 base-batches-robotics-track.devfolio.co\n\nStudent Track\n\nDesigned for undergraduate student builders worldwide to collaborate across universities and turn ideas into real products.\nWhat you get:\n\nPitch at Demo Day in San Francisco\nOpportunity for $50K investment from the Base Ecosystem Fund\nMentorship and ecosystem support\nHappening: Online\nDeadline: April 27, 2026\nApply now \u2192 base-batches-student-track-3.devfolio.co\nWhether you're building with a team, exploring new ideas, or just getting started, there's something here for you.\n\nNever Stop Building,\nTeam Devfolio\n\n\u00a9 2026, NSB Classic PTE LTD\n\nPrefer not to receive emails about upcoming hackathons? Update preferences here or unsubscribe.",
+    "urls": [],
+    "headers": {}
+  },
+  {
+    "risk_score": "Medium",
+    "highlighted_tokens": [
+      "urgent",
+      "verify"
+    ],
+    "heuristics": [
+      "Suspicious phrase: urgent",
+      "Suspicious phrase: verify"
+    ],
+    "quiz": [
+      {
+        "question": "Which phrase indicates phishing?",
+        "options": [
+          "Thank you",
+          "urgent",
+          "Hello"
+        ],
+        "correct": [
+          "urgent"
+        ]
+      },
+      {
+        "question": "Which phrase indicates phishing?",
+        "options": [
+          "verify",
+          "Thank you",
+          "Hello"
+        ],
+        "correct": [
+          "verify"
+        ]
+      }
+    ],
+    "timestamp": "2026-03-28T08:55:21.564032",
+    "subject": "",
+    "sender": "",
+    "email_text": "Phishing Template: The \"Security Alert\"\nSubject: \u26a0\ufe0f Urgent: Unusual login attempt on your account\n\nFrom: Security Team support@accounts-security-verif-service.com\n(Note the \"look-alike\" domain)\n\nBody:\n\nDear Customer,\n\nWe noticed an unusual login attempt to your account from a new device in Moscow, Russia.\n\nIf this was not you, your account may have been compromised. To prevent unauthorized access, we have temporarily restricted your account features.\n\nPlease click the button below to verify your identity and restore your access immediately. Failure to do so within 24 hours will result in permanent account suspension.\n\n[ Verify Account Now ]\n\nThank you for helping us protect your information.\n\n\u2014 The Security Service Team",
+    "urls": [],
+    "headers": {}
+  },
+  {
+    "risk_score": "Medium",
+    "highlighted_tokens": [
+      "urgent",
+      "verify"
+    ],
+    "heuristics": [
+      "Suspicious phrase: urgent",
+      "Suspicious phrase: verify"
+    ],
+    "quiz": [
+      {
+        "question": "Which phrase indicates phishing?",
+        "options": [
+          "Thank you",
+          "Hello",
+          "urgent"
+        ],
+        "correct": [
+          "urgent"
+        ]
+      },
+      {
+        "question": "Which phrase indicates phishing?",
+        "options": [
+          "Thank you",
+          "verify",
+          "Hello"
+        ],
+        "correct": [
+          "verify"
+        ]
+      }
+    ],
+    "timestamp": "2026-03-28T08:55:51.137162",
+    "subject": "",
+    "sender": "",
+    "email_text": "Phishing Template: The \"Security Alert\"\nSubject: \u26a0\ufe0f Urgent: Unusual login attempt on your account\n\nFrom: Security Team support@accounts-security-verif-service.com\n(Note the \"look-alike\" domain)\n\nBody:\n\nDear Customer,\n\nWe noticed an unusual login attempt to your account from a new device in Moscow, Russia.\n\nIf this was not you, your account may have been compromised. To prevent unauthorized access, we have temporarily restricted your account features.\n\nPlease click the button below to verify your identity and restore your access immediately. Failure to do so within 24 hours will result in permanent account suspension.\n\n[ Verify Account Now ]\n\nThank you for helping us protect your information.\n\n\u2014 The Security Service Team",
+    "urls": [],
+    "headers": {}
+  },
+  {
+    "risk_score": "High",
+    "highlighted_tokens": [
+      "urgent",
+      "verify"
+    ],
+    "heuristics": [
+      "Suspicious phrase: urgent",
+      "Suspicious phrase: verify"
+    ],
+    "quiz": [
+      {
+        "question": "Which phrase indicates phishing?",
+        "options": [
+          "urgent",
+          "Thank you",
+          "Hello"
+        ],
+        "correct": [
+          "urgent"
+        ]
+      },
+      {
+        "question": "Which phrase indicates phishing?",
+        "options": [
+          "Thank you",
+          "verify",
+          "Hello"
+        ],
+        "correct": [
+          "verify"
+        ]
+      }
+    ],
+    "timestamp": "2026-03-28T08:57:49.043601",
+    "subject": "",
+    "sender": "",
+    "email_text": "Phishing Template: The \"Security Alert\"\nSubject: \u26a0\ufe0f Urgent: Unusual login attempt on your account\n\nFrom: Security Team support@accounts-security-verif-service.com\n(Note the \"look-alike\" domain)\n\nBody:\n\nDear Customer,\n\nWe noticed an unusual login attempt to your account from a new device in Moscow, Russia.\n\nIf this was not you, your account may have been compromised. To prevent unauthorized access, we have temporarily restricted your account features.\n\nPlease click the button below to verify your identity and restore your access immediately. Failure to do so within 24 hours will result in permanent account suspension.\n\n[ Verify Account Now ]\n\nThank you for helping us protect your information.\n\n\u2014 The Security Service Team",
+    "urls": [],
+    "headers": {}
+  },
+  {
+    "risk_score": "High",
+    "highlighted_tokens": [
+      "urgent",
+      "verify"
+    ],
+    "heuristics": [
+      "Suspicious phrase: urgent",
+      "Suspicious phrase: verify"
+    ],
+    "quiz": [
+      {
+        "question": "Which phrase indicates phishing?",
+        "options": [
+          "Hello",
+          "Thank you",
+          "urgent"
+        ],
+        "correct": [
+          "urgent"
+        ]
+      },
+      {
+        "question": "Which phrase indicates phishing?",
+        "options": [
+          "verify",
+          "Hello",
+          "Thank you"
+        ],
+        "correct": [
+          "verify"
+        ]
+      }
+    ],
+    "timestamp": "2026-03-28T08:58:01.202651",
+    "subject": "",
+    "sender": "",
+    "email_text": "Phishing Template: The \"Security Alert\"\nSubject: \u26a0\ufe0f Urgent: Unusual login attempt on your account\n\nFrom: Security Team support@accounts-security-verif-service.com\n(Note the \"look-alike\" domain)\n\nBody:\n\nDear Customer,\n\nWe noticed an unusual login attempt to your account from a new device in Moscow, Russia.\n\nIf this was not you, your account may have been compromised. To prevent unauthorized access, we have temporarily restricted your account features.\n\nPlease click the button below to verify your identity and restore your access immediately. Failure to do so within 24 hours will result in permanent account suspension.\n\n[ Verify Account Now ]\n\nThank you for helping us protect your information.\n\n\u2014 The Security Service Team",
+    "urls": [],
+    "headers": {}
+  },
+  {
+    "risk_score": "High",
+    "highlighted_tokens": [
+      "urgent",
+      "verify"
+    ],
+    "heuristics": [
+      "Suspicious phrase: urgent",
+      "Suspicious phrase: verify"
+    ],
+    "quiz": [
+      {
+        "question": "Which phrase indicates phishing?",
+        "options": [
+          "Thank you",
+          "urgent",
+          "Hello"
+        ],
+        "correct": [
+          "urgent"
+        ]
+      },
+      {
+        "question": "Which phrase indicates phishing?",
+        "options": [
+          "verify",
+          "Thank you",
+          "Hello"
+        ],
+        "correct": [
+          "verify"
+        ]
+      }
+    ],
+    "timestamp": "2026-03-28T08:58:31.853688",
+    "subject": "",
+    "sender": "",
+    "email_text": "Phishing Template: The \"Security Alert\"\nSubject: \u26a0\ufe0f Urgent: Unusual login attempt on your account\n\nFrom: Security Team support@accounts-security-verif-service.com\n(Note the \"look-alike\" domain)\n\nBody:\n\nDear Customer,\n\nWe noticed an unusual login attempt to your account from a new device in Moscow, Russia.\n\nIf this was not you, your account may have been compromised. To prevent unauthorized access, we have temporarily restricted your account features.\n\nPlease click the button below to verify your identity and restore your access immediately. Failure to do so within 24 hours will result in permanent account suspension.\n\n[ Verify Account Now ]\n\nThank you for helping us protect your information.\n\n\u2014 The Security Service Team",
+    "urls": [],
+    "headers": {}
+  },
+  {
+    "risk_score": "High",
+    "highlighted_tokens": [
+      "urgent",
+      "verify"
+    ],
+    "heuristics": [
+      "Suspicious phrase: urgent",
+      "Suspicious phrase: verify"
+    ],
+    "quiz": [
+      {
+        "question": "Which phrase indicates phishing?",
+        "options": [
+          "Thank you",
+          "urgent",
+          "Hello"
+        ],
+        "correct": [
+          "urgent"
+        ]
+      },
+      {
+        "question": "Which phrase indicates phishing?",
+        "options": [
+          "Hello",
+          "Thank you",
+          "verify"
+        ],
+        "correct": [
+          "verify"
+        ]
+      }
+    ],
+    "timestamp": "2026-03-28T08:58:35.551860",
+    "subject": "",
+    "sender": "",
+    "email_text": "Phishing Template: The \"Security Alert\"\nSubject: \u26a0\ufe0f Urgent: Unusual login attempt on your account\n\nFrom: Security Team support@accounts-security-verif-service.com\n(Note the \"look-alike\" domain)\n\nBody:\n\nDear Customer,\n\nWe noticed an unusual login attempt to your account from a new device in Moscow, Russia.\n\nIf this was not you, your account may have been compromised. To prevent unauthorized access, we have temporarily restricted your account features.\n\nPlease click the button below to verify your identity and restore your access immediately. Failure to do so within 24 hours will result in permanent account suspension.\n\n[ Verify Account Now ]\n\nThank you for helping us protect your information.\n\n\u2014 The Security Service Team",
+    "urls": [],
+    "headers": {}
+  },
+  {
+    "risk_score": "High",
+    "highlighted_tokens": [
+      "urgent",
+      "verify"
+    ],
+    "heuristics": [
+      "Suspicious phrase: urgent",
+      "Suspicious phrase: verify"
+    ],
+    "quiz": [
+      {
+        "question": "Which phrase indicates phishing?",
+        "options": [
+          "Hello",
+          "urgent",
+          "Thank you"
+        ],
+        "correct": [
+          "urgent"
+        ]
+      },
+      {
+        "question": "Which phrase indicates phishing?",
+        "options": [
+          "verify",
+          "Thank you",
+          "Hello"
+        ],
+        "correct": [
+          "verify"
+        ]
+      }
+    ],
+    "timestamp": "2026-03-28T08:59:38.231618",
+    "subject": "",
+    "sender": "",
+    "email_text": "Phishing Template: The \"Security Alert\"\nSubject: \u26a0\ufe0f Urgent: Unusual login attempt on your account\n\nFrom: Security Team support@accounts-security-verif-service.com\n(Note the \"look-alike\" domain)\n\nBody:\n\nDear Customer,\n\nWe noticed an unusual login attempt to your account from a new device in Moscow, Russia.\n\nIf this was not you, your account may have been compromised. To prevent unauthorized access, we have temporarily restricted your account features.\n\nPlease click the button below to verify your identity and restore your access immediately. Failure to do so within 24 hours will result in permanent account suspension.\n\n[ Verify Account Now ]\n\nThank you for helping us protect your information.\n\n\u2014 The Security Service Team",
+    "urls": [],
+    "headers": {}
+  },
+  {
+    "risk_score": "High",
+    "highlighted_tokens": [
+      "urgent",
+      "verify"
+    ],
+    "heuristics": [
+      "Suspicious phrase: urgent",
+      "Suspicious phrase: verify"
+    ],
+    "quiz": [
+      {
+        "question": "Which phrase indicates phishing?",
+        "options": [
+          "Hello",
+          "urgent",
+          "Thank you"
+        ],
+        "correct": [
+          "urgent"
+        ]
+      },
+      {
+        "question": "Which phrase indicates phishing?",
+        "options": [
+          "Thank you",
+          "verify",
+          "Hello"
+        ],
+        "correct": [
+          "verify"
+        ]
+      }
+    ],
+    "timestamp": "2026-03-28T08:59:44.786764",
+    "subject": "",
+    "sender": "",
+    "email_text": "Phishing Template: The \"Security Alert\"\nSubject: \u26a0\ufe0f Urgent: Unusual login attempt on your account\n\nFrom: Security Team support@accounts-security-verif-service.com\n(Note the \"look-alike\" domain)\n\nBody:\n\nDear Customer,\n\nWe noticed an unusual login attempt to your account from a new device in Moscow, Russia.\n\nIf this was not you, your account may have been compromised. To prevent unauthorized access, we have temporarily restricted your account features.\n\nPlease click the button below to verify your identity and restore your access immediately. Failure to do so within 24 hours will result in permanent account suspension.\n\n[ Verify Account Now ]\n\nThank you for helping us protect your information.\n\n\u2014 The Security Service Team",
+    "urls": [],
+    "headers": {}
+  },
+  {
+    "risk_score": "High",
+    "highlighted_tokens": [
+      "urgent",
+      "verify"
+    ],
+    "heuristics": [
+      "Suspicious phrase: urgent",
+      "Suspicious phrase: verify"
+    ],
+    "quiz": [
+      {
+        "question": "Which phrase indicates phishing?",
+        "options": [
+          "urgent",
+          "Hello",
+          "Thank you"
+        ],
+        "correct": [
+          "urgent"
+        ]
+      },
+      {
+        "question": "Which phrase indicates phishing?",
+        "options": [
+          "Thank you",
+          "Hello",
+          "verify"
+        ],
+        "correct": [
+          "verify"
+        ]
+      }
+    ],
+    "timestamp": "2026-03-28T09:01:58.904631",
+    "subject": "",
+    "sender": "",
+    "email_text": "Phishing Template: The \"Security Alert\"\nSubject: \u26a0\ufe0f Urgent: Unusual login attempt on your account\n\nFrom: Security Team support@accounts-security-verif-service.com\n(Note the \"look-alike\" domain)\n\nBody:\n\nDear Customer,\n\nWe noticed an unusual login attempt to your account from a new device in Moscow, Russia.\n\nIf this was not you, your account may have been compromised. To prevent unauthorized access, we have temporarily restricted your account features.\n\nPlease click the button below to verify your identity and restore your access immediately. Failure to do so within 24 hours will result in permanent account suspension.\n\n[ Verify Account Now ]\n\nThank you for helping us protect your information.\n\n\u2014 The Security Service Team",
+    "urls": [],
+    "headers": {}
+  },
+  {
+    "risk_score": "Low",
+    "highlighted_tokens": [],
+    "heuristics": [],
+    "quiz": [],
+    "timestamp": "2026-03-28T09:04:13.569533",
+    "subject": "",
+    "sender": "",
+    "email_text": "http://localhost:8000/fetch-high-risk-emails",
+    "urls": [],
+    "headers": {}
+  },
+  {
+    "risk_score": "Low",
+    "highlighted_tokens": [],
+    "heuristics": [],
+    "quiz": [],
+    "timestamp": "2026-03-28T09:04:24.217551",
+    "subject": "",
+    "sender": "",
+    "email_text": "http://localhost:8000/fetch-high-risk-emails",
+    "urls": [],
+    "headers": {}
+  },
+  {
+    "risk_score": "Low",
+    "highlighted_tokens": [],
+    "heuristics": [],
+    "quiz": [],
+    "timestamp": "2026-03-28T09:07:27.977822",
+    "subject": "",
+    "sender": "",
+    "email_text": "http://localhost:8000/fetch-high-risk-emails",
+    "urls": [],
+    "headers": {}
+  },
+  {
+    "risk_score": "Low",
+    "highlighted_tokens": [],
+    "heuristics": [],
+    "quiz": [],
+    "timestamp": "2026-03-28T09:07:36.031890",
+    "subject": "",
+    "sender": "",
+    "email_text": "http://localhost:8000/fetch-high-risk-emails",
+    "urls": [],
+    "headers": {}
+  },
+  {
+    "risk_score": "Low",
+    "highlighted_tokens": [],
+    "heuristics": [],
+    "quiz": [],
+    "timestamp": "2026-03-28T09:08:03.620075",
+    "subject": "",
+    "sender": "",
+    "email_text": "http://localhost:8000/fetch-high-risk-emails",
+    "urls": [],
+    "headers": {}
+  },
+  {
+    "risk_score": "Low",
+    "highlighted_tokens": [],
+    "heuristics": [],
+    "quiz": [],
+    "timestamp": "2026-03-28T09:10:19.493781",
+    "subject": "",
+    "sender": "",
+    "email_text": "http://localhost:8000/fetch-high-risk-emails",
+    "urls": [],
+    "headers": {}
+  },
+  {
+    "risk_score": "Low",
+    "highlighted_tokens": [],
+    "heuristics": [],
+    "quiz": [],
+    "timestamp": "2026-03-28T09:11:51.949125",
+    "subject": "",
+    "sender": "",
+    "email_text": "http://localhost:8000/fetch-high-risk-emails",
+    "urls": [],
+    "headers": {}
+  },
+  {
+    "risk_score": "Low",
+    "highlighted_tokens": [],
+    "heuristics": [],
+    "quiz": [],
+    "timestamp": "2026-03-28T09:11:54.354605",
+    "subject": "",
+    "sender": "",
+    "email_text": "http://localhost:8000/fetch-high-risk-emails",
+    "urls": [],
+    "headers": {}
+  },
+  {
+    "risk_score": "Low",
+    "highlighted_tokens": [],
+    "heuristics": [],
+    "quiz": [],
+    "timestamp": "2026-03-28T09:11:54.992201",
+    "subject": "",
+    "sender": "",
+    "email_text": "http://localhost:8000/fetch-high-risk-emails",
+    "urls": [],
+    "headers": {}
+  },
+  {
+    "risk_score": "Low",
+    "highlighted_tokens": [],
+    "heuristics": [],
+    "quiz": [],
+    "timestamp": "2026-03-28T09:11:55.202837",
+    "subject": "",
+    "sender": "",
+    "email_text": "http://localhost:8000/fetch-high-risk-emails",
+    "urls": [],
+    "headers": {}
+  },
+  {
+    "risk_score": "Low",
+    "highlighted_tokens": [],
+    "heuristics": [],
+    "quiz": [],
+    "timestamp": "2026-03-28T09:11:55.696707",
+    "subject": "",
+    "sender": "",
+    "email_text": "http://localhost:8000/fetch-high-risk-emails",
+    "urls": [],
+    "headers": {}
+  }
+]
