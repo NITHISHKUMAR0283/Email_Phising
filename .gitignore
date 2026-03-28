@@ -1,0 +1,58 @@
+# Node
+node_modules/
+dist/
+build/
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.env
+*.venv
+venv/
+env/
+ENV/
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# VSCode
+.vscode/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Model/transformers cache
+.cache/
+*.ckpt
+*.pt
+*.pth
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Python/HuggingFace model cache
+huggingface/
+transformers_cache/
+
+# Misc
+*.swp
+*.swo
+
+# Frontend build
+frontend/.next/
+frontend/.turbo/
+frontend/.cache/
+frontend/.env
+
+# Backend build
+app/.env
+app/.cache/
+app/.mypy_cache/
+app/.pytest_cache/

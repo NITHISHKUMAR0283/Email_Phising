@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+pydantic
+python-multipart
+# For AI modules
+transformers
+scikit-learn
+sentence-transformers
+chromadb
+# For DB
+motor
+pymongo
+# For LLM (Ollama, llama-cpp-python, etc.)
+ollama
