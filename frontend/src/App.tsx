@@ -2,21 +2,15 @@
 import DetectionForm from './components/DetectionForm';
 import EmailList from './components/EmailList';
 import EmailDetail from './components/EmailDetail';
-import LogTable from './components/LogTable';
 import HighRiskInbox from './components/HighRiskInbox';
-import React, { useState, useEffect } from 'react';
-import { fetchLogs } from './utils/api';
+import React, { useState } from 'react';
+
 
 
 function App() {
   const [analyses, setAnalyses] = useState<any[]>([]);
   const [selectedIdx, setSelectedIdx] = useState(0);
-  const [logs, setLogs] = useState<any[]>([]);
   const [tab, setTab] = useState<'gmail' | 'manual'>('gmail');
-
-  useEffect(() => {
-    fetchLogs().then(setLogs).catch(() => setLogs([]));
-  }, [analyses]);
 
   const handleDetection = (result: any) => {
     setAnalyses(prev => [...prev, result]);
@@ -56,9 +50,7 @@ function App() {
           </div>
         </div>
       )}
-      <div className="w-full max-w-6xl mt-8">
-        <LogTable logs={logs} />
-      </div>
+
     </div>
   );
 }

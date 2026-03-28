@@ -1,6 +1,5 @@
 
-import os
-import json
+ 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .gmail_oauth import router as gmail_router
@@ -60,24 +59,6 @@ def analyze_email(req: AnalyzeEmailRequest):
         "urls": req.urls or [],
         "headers": req.headers or {},
     }
-    # Log to local JSON file
-    log_path = "phishing_logs.json"
-    if os.path.exists(log_path):
-        with open(log_path, "r", encoding="utf-8") as f:
-            logs = json.load(f)
-    else:
-        logs = []
-    logs.append(output)
-    with open(log_path, "w", encoding="utf-8") as f:
-        json.dump(logs, f, indent=2)
     return output
 
-# Endpoint to fetch logs
-@app.get("/logs")
-def get_logs():
-    log_path = "phishing_logs.json"
-    if os.path.exists(log_path):
-        with open(log_path, "r", encoding="utf-8") as f:
-            logs = json.load(f)
-        return logs
-    return []
+

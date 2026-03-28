@@ -87,10 +87,7 @@ def fetch_high_risk_emails():
         # Run AI + heuristics
         heuristics = analyze_heuristics(body, sender, None, headers)
         model_probs = predict_phishing(model, tokenizer, body, subject=subject, sender=sender)
-        # Print model phishing probability for threshold tuning
-        # Write AI score to a log file for debugging
-        with open("ai_scores.log", "a", encoding="utf-8") as logf:
-            logf.write(f"[AI SCORE] Subject: {subject}\nSender: {sender}\nPhishing Probability: {model_probs['phishing']:.4f}\n\n")
+
         combined_score = min(model_probs["phishing"], 1.0)
         result = combine_signals(model_probs["phishing"], heuristics)
         highlighted = extract_highlighted_tokens(body, heuristics)

@@ -32,17 +32,16 @@ def predict_phishing(model, tokenizer, email_text: str, subject: str = None, sen
         outputs = model(**inputs)
         probs = torch.nn.functional.softmax(outputs.logits, dim=-1)[0].tolist()
     # Log to file if subject or sender is provided
-    if subject is not None or sender is not None:
-        log_str = (
-            f"[AI SCORE] Subject: {subject or ''}\n"
-            f"Sender: {sender or ''}\n"
-            f"Legitimate: {probs[0]:.4f}\n"
-            f"Phishing: {probs[1]:.4f}\n"
-            f"Suspicious URL: {probs[2] if len(probs) > 2 else 0.0:.4f}\n\n"
-        )
-        with open("ai_scores.log", "a", encoding="utf-8") as logf:
-            logf.write(log_str)
-        print(log_str)
+    # Optionally print for debugging, but do not log to file in production
+    # if subject is not None or sender is not None:
+    #     log_str = (
+    #         f"[AI SCORE] Subject: {subject or ''}\n"
+    #         f"Sender: {sender or ''}\n"
+    #         f"Legitimate: {probs[0]:.4f}\n"
+    #         f"Phishing: {probs[1]:.4f}\n"
+    #         f"Suspicious URL: {probs[2] if len(probs) > 2 else 0.0:.4f}\n\n"
+    #     )
+    #     print(log_str)
     return {
         "legitimate": probs[0],
         "phishing": probs[1],

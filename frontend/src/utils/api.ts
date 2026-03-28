@@ -10,9 +10,4 @@ export async function analyzeEmail(email: any) {
   return res.json();
 }
 
-// Fetch logs for log table
-export async function fetchLogs() {
-  const res = await fetch('http://localhost:8000/logs');
-  if (!res.ok) throw new Error('Failed to fetch logs');
-  return res.json();
-}
+
