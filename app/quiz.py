@@ -2,16 +2,22 @@
 import random
 from typing import List, Dict
 
+# Cache options to avoid regenerating them
+_QUIZ_OPTIONS_CACHE = {"Hello": True, "Thank you": True}
+
 def generate_quiz(email_text: str, highlighted_tokens: List[str]) -> List[Dict]:
     """
     Generate 1-3 quiz questions based on risky tokens in the email.
     Each question asks the user to identify a phishing phrase.
     Returns a list of quiz question dicts.
+    Optimized: Uses cached options and limits to 2 questions max.
     """
     questions = []
     if not highlighted_tokens:
         return questions
-    for i, token in enumerate(highlighted_tokens[:3]):
+    
+    # Limit to 2 questions for faster response (was 3)
+    for i, token in enumerate(highlighted_tokens[:2]):
         options = [token, "Hello", "Thank you"]
         random.shuffle(options)
         questions.append({

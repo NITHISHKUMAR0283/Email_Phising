@@ -9,6 +9,7 @@ from .model import load_model, predict_phishing
 from .heuristics import analyze_heuristics
 from .utils import combine_signals, extract_highlighted_tokens
 from .quiz import generate_quiz
+from .phishing_engine import load_all_models
 from datetime import datetime
 
 
@@ -28,9 +29,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load model and tokenizer at startup
-model, tokenizer = load_model()
-print("Model loaded, backend ready.")
+# Load models eagerly on startup
+model, tokenizer = None, None
+
+@app.on_event("startup")
+async def startup_event():
+    """Load all models when backend starts."""
+    print("\n🚀 Backend starting... Loading models...")
+    load_all_models()
+    global model, tokenizer
+    model, tokenizer = load_model()
+    print("✅ Backend ready! All models loaded.\n")
+
+print("Backend initializing...")
 
 class AnalyzeEmailRequest(BaseModel):
     email_text: str
@@ -43,6 +54,8 @@ class AnalyzeEmailRequest(BaseModel):
 
 @app.post("/analyze-email")
 def analyze_email(req: AnalyzeEmailRequest):
+    global model, tokenizer
+    
     model_probs = predict_phishing(model, tokenizer, req.email_text)
     phishing_prob = model_probs["phishing"]
     heuristics = analyze_heuristics(req.email_text, req.sender, req.urls, req.headers)

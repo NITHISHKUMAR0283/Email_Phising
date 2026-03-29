@@ -7,3 +7,7 @@ transformers
 torch
 tldextract
 pydantic
+python-whois
+dnspython
+requests
+beautifulsoup4
