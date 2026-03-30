@@ -11,22 +11,15 @@ from pathlib import Path
 
 # Add URL_Detection-master to path so we can import its engine
 url_detection_path = Path(__file__).parent.parent / "URL_Detection-master"
-if str(url_detection_path) not in sys.path:
+if url_detection_path.exists():
     sys.path.insert(0, str(url_detection_path))
 
-# Also add engine subdirectory
-engine_path = url_detection_path / "engine"
-if str(engine_path) not in sys.path:
-    sys.path.insert(0, str(engine_path))
-
 try:
-    # Try importing the engine
     from engine import URLAnalysisEngine
     URL_ENGINE_AVAILABLE = True
-    print("✅ URL Detection Engine loaded successfully")
-except ImportError as e:
+except ImportError:
     URL_ENGINE_AVAILABLE = False
-    print(f"⚠️  URL Detection engine not available (fallback mode): {e}")
+    print("⚠️  WARNING: URL_Detection engine not available. Falling back to heuristics.")
 
 
 class URLAnalyzer:
