@@ -106,15 +106,15 @@ def load_all_models():
 	print("=== All models loaded successfully ===\n")
 
 # --- Step 2: URL Analysis (NEW: Using Advanced URL Detection Engine) ---
-def analyze_url(urls: List[str]) -> Tuple[float, List[str], List[str]]:
+def analyze_url(urls: List[str]) -> Tuple[float, List[str], List[str], List[Dict[str, Any]]]:
 	"""
 	Analyze URLs using the military-grade URL Detection engine.
 	Replaces BERT model with comprehensive multi-phase analysis.
 	
-	Returns max score, suspicious URLs, and explanations.
+	Returns max score, suspicious URLs, explanations, and detailed analysis.
 	"""
 	if not urls:
-		return 0.0, [], []
+		return 0.0, [], [], []
 	
 	# Use the advanced URL analyzer engine
 	analysis_result = analyze_urls_engine(urls)
@@ -122,6 +122,7 @@ def analyze_url(urls: List[str]) -> Tuple[float, List[str], List[str]]:
 	max_score = analysis_result['max_risk_score']
 	suspicious_urls = []
 	explanations = []
+	detailed_analyses = analysis_result['details']  # Full analysis data for each URL
 	
 	# Process individual URL details
 	for url_detail in analysis_result['details']:
@@ -143,7 +144,7 @@ def analyze_url(urls: List[str]) -> Tuple[float, List[str], List[str]]:
 		
 		explanations.append(explanation)
 	
-	return max_score, suspicious_urls, explanations
+	return max_score, suspicious_urls, explanations, detailed_analyses
 
 # --- Step 2.5: Header-Based Domain Analysis (Authentication Check) ---
 def parse_email_headers(raw_headers: str) -> Dict[str, str]:
@@ -586,7 +587,7 @@ def phishing_engine(email: Dict[str, Any]) -> Dict[str, Any]:
 		text_future = executor.submit(analyze_text, subject + "\n" + body)
 		
 		# Collect results as they complete
-		url_score, suspicious_urls, url_expl = url_future.result()
+		url_score, suspicious_urls, url_expl, url_analysis_details = url_future.result()
 		domain_score, domain_expl = domain_future.result()
 		intent_score, matched_phrases, intent_expl = intent_future.result()
 		text_score, text_expl = text_future.result()
@@ -642,7 +643,8 @@ def phishing_engine(email: Dict[str, Any]) -> Dict[str, Any]:
 		},
 		"vt_findings": vt_findings if vt_findings else None,
 		"reasons": reasons,
-		"highlight": highlight
+		"highlight": highlight,
+		"url_analysis": url_analysis_details if url_analysis_details else None
 	}
 
 

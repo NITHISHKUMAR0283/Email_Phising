@@ -3,6 +3,7 @@ import React from 'react';
 import SpeedoMeter from './SpeedoMeter';
 import ScoreComponents from './ScoreComponents';
 import Quiz from './Quiz';
+import URLAnalysisDetail from './URLAnalysisDetail';
 
 // Tech color map for highlights
 const highlightColor: Record<string, string> = {
@@ -129,6 +130,20 @@ const EmailDetail: React.FC<{ email: any }> = ({ email }) => {
               ... and {email.reasons.length - 8} more threats
             </div>
           )}
+        </div>
+      )}
+
+      {/* URL Analysis Section */}
+      {email.url_analysis && email.url_analysis.length > 0 && (
+        <div className="mb-8 p-4 border-2 border-orange-600/40 bg-orange-600/10 rounded-lg"
+          style={{
+            boxShadow: '0 0 20px rgba(234, 88, 12, 0.2), inset 0 0 10px rgba(234, 88, 12, 0.05)',
+          }}>
+          <div className="text-sm font-mono text-orange-400 mb-4 flex items-center gap-2">
+            <span className="inline-block w-3 h-3 bg-orange-500 animate-pulse rounded-full"></span>
+            URL_DETECTION_ANALYSIS
+          </div>
+          <URLAnalysisDetail urls={email.url_analysis} email_urls={email.urls} />
         </div>
       )}
 

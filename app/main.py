@@ -116,6 +116,7 @@ def analyze_email(req: AnalyzeEmailRequest):
         "signal_agreement": engine_result["signal_agreement"],
         "is_whitelisted": engine_result["is_whitelisted"],
         "components": engine_result["components"],
+        "url_analysis": engine_result.get("url_analysis"),  # Detailed URL analysis
     }
     return output
 
@@ -164,7 +165,8 @@ def analyze_email_groq(req: AnalyzeEmailRequest):
         "risk_level": risk_level,
         "engine_score": engine_result["final_score"],  # Phishing engine score for reference
         "confidence": engine_result["confidence"],
-        "signal_agreement": engine_result["signal_agreement"]
+        "signal_agreement": engine_result["signal_agreement"],
+        "url_analysis": engine_result.get("url_analysis")  # Detailed URL analysis
     }
 
 
