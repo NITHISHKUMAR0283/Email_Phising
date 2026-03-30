@@ -64,20 +64,7 @@ def oauth2callback(request: Request, code_verifier: str = Cookie(None)):
     # Use code_verifier from cookie
     flow.fetch_token(code=code, code_verifier=code_verifier)
     credentials = flow.credentials
-    
-    # Store full credentials as JSON (includes refresh_token, expiry, etc.)
-    # This is needed for token refresh later
-    creds_data = {
-        "token": credentials.token,
-        "refresh_token": credentials.refresh_token,
-        "token_uri": credentials.token_uri,
-        "client_id": credentials.client_id,
-        "client_secret": credentials.client_secret,
-        "scopes": credentials.scopes,
-    }
-    user_tokens["credentials"] = creds_data
-    user_tokens["access_token"] = credentials.token  # Keep for backward compatibility
-    
+    user_tokens["access_token"] = credentials.token
     # Clear the code_verifier cookie
     # Redirect with token as query param so frontend can save to localStorage
     response = RedirectResponse(f"http://localhost:5173/?token={credentials.token}")
@@ -440,26 +427,12 @@ def fetch_emails_stream(max_results: int = 10, token: str = None, folder: str = 
         token: Gmail access token
         folder: Email folder/label - "INBOX", "SPAM", "SENT", "DRAFT" (default "INBOX")
     """
-    # Use provided token or fall back to in-memory credentials
+    # Use provided token or fall back to in-memory token
     access_token = token or user_tokens.get("access_token")
     if not access_token:
         return JSONResponse({"error": "Not authenticated"}, status_code=401)
-    
-    # Reconstruct credentials with all required fields for token refresh
-    creds_data = user_tokens.get("credentials", {})
-    if creds_data:
-        # Full credentials from oauth2callback storage
-        creds = Credentials(
-            token=creds_data.get("token", access_token),
-            refresh_token=creds_data.get("refresh_token"),
-            token_uri=creds_data.get("token_uri"),
-            client_id=creds_data.get("client_id"),
-            client_secret=creds_data.get("client_secret"),
-            scopes=creds_data.get("scopes", SCOPES),
-        )
-    else:
-        # Fallback: create with minimal info (may not support token refresh)
-        creds = Credentials(token=access_token)
+
+    creds = Credentials(token=access_token)
     service = build("gmail", "v1", credentials=creds)
     
     # Build query to fetch from specific folder/label
