@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { analyzeEmail } from '../utils/api';
+import { analyzeEmail } from '../api';
 import ScoreBreakdown from './ScoreBreakdown';
 import AnalysisReport from './AnalysisReport';
 
@@ -26,13 +26,12 @@ export default function DetectionForm({ onDetect }: { onDetect?: (result: any) =
       } catch {
         headersObj = undefined;
       }
-      const detection = await analyzeEmail({
-        email_text: emailText,
-        subject,
-        sender,
-        urls: urlsArr,
-        headers: headersObj
-      });
+      const detection = await analyzeEmail(
+        emailText,
+        sender || undefined,
+        urlsArr,
+        headersObj
+      );
       setResult(detection);
       if (onDetect) onDetect(detection);
     } catch (err) {

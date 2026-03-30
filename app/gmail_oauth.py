@@ -19,14 +19,14 @@ from .url_grok_analyzer import analyze_urls_with_grok
 from typing import Dict, Any, List
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# Add project root to Python path to import domain folder
+# Add parent directory to path for sibling imports (domain module)
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from domain.header_analyzer import analyze_headers as analyze_headers_domain
-from domain.risk_engine import compute_risk
+from domain import analyze_headers as analyze_headers_domain, compute_risk
 
-CLIENT_ID = "685356081512-k89ps7iino08oqlc2bipvt73eqar3apo.apps.googleusercontent.com"
-CLIENT_SECRET = "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"
-REDIRECT_URI = "http://localhost:8000/oauth2callback"
+# Load OAuth credentials from environment variables
+CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
+REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/oauth2callback")
 SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 
 router = APIRouter()

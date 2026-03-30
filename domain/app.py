@@ -4,11 +4,14 @@ app.py — Flask backend for the Phishing Header Analyzer UI
 
 Serves the frontend and exposes a /api/analyze endpoint that accepts
 raw email headers and returns the full security analysis as JSON.
+
+NOTE: This is a legacy Flask backend. The current frontend uses the FastAPI backend
+located in app/main.py. This file is kept for reference and can be run standalone.
 """
 
 from flask import Flask, render_template, request, jsonify
-from header_analyzer import analyze_headers
-from risk_engine import compute_risk, SEVERITY_LABELS
+from .header_analyzer import analyze_headers
+from .risk_engine import compute_risk, SEVERITY_LABELS
 
 app = Flask(__name__)
 

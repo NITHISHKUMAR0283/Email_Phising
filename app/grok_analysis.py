@@ -5,6 +5,7 @@ Falls back to heuristics-based analysis if Grok fails.
 """
 
 import re
+import os
 from typing import Dict, Any, Optional
 import requests
 from datetime import datetime
@@ -12,9 +13,9 @@ import time
 import threading
 
 # Groq API configuration (not xAI)
-GROK_API_KEY = "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"
+GROK_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROK_API_URL = "https://api.groq.com/openai/v1/chat/completions"  # Correct Groq endpoint
-GROK_ENABLED = True  # Enable Groq with correct configuration
+GROK_ENABLED = bool(GROK_API_KEY)  # Only enable if API key is provided
 
 # Rate limiting & request serialization
 LAST_REQUEST_TIME = 0

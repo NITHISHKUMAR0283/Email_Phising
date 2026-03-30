@@ -44,12 +44,9 @@ model, tokenizer = None, None
 
 @app.on_event("startup")
 async def startup_event():
-    """Load all models when backend starts."""
-    print("\n🚀 Backend starting... Loading models...")
-    load_all_models()
-    global model, tokenizer
-    model, tokenizer = load_model()
-    print("✅ Backend ready! All models loaded.\n")
+    """Backend startup - models will load on demand."""
+    print("\n🚀 Backend started!")
+    print("✅ Server ready on http://localhost:8000\n")
 
 print("Backend initializing...")
 
