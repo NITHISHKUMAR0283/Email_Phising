@@ -11,5 +11,3 @@ python-whois
 dnspython
 requests
 beautifulsoup4
-python-dotenv
-groq

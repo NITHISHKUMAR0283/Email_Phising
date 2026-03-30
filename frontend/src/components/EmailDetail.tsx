@@ -1,7 +1,10 @@
 
 import React from 'react';
+
 import SpeedoMeter from './SpeedoMeter';
 import ScoreComponents from './ScoreComponents';
+
+import RiskBadge from './RiskBadge';
 import Quiz from './Quiz';
 import URLAnalysisDetail from './URLAnalysisDetail';
 

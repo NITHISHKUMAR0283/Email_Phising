@@ -1,5 +1,4 @@
 import os
-import sys
 import base64
 import re
 import time
@@ -15,14 +14,10 @@ from google.oauth2.credentials import Credentials
 from .phishing_engine import phishing_engine
 from .grok_analysis import generate_grok_analysis
 from .heuristics import analyze_heuristics
+from .header_analyzer import analyze_email_headers
 from .url_grok_analyzer import analyze_urls_with_grok
 from typing import Dict, Any, List
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
-# Add project root to Python path to import domain folder
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from domain.header_analyzer import analyze_headers as analyze_headers_domain
-from domain.risk_engine import compute_risk
 
 CLIENT_ID = "685356081512-k89ps7iino08oqlc2bipvt73eqar3apo.apps.googleusercontent.com"
 CLIENT_SECRET = "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"
@@ -195,22 +190,11 @@ def process_email_message(access_token: str, msg: Dict[str, Any]) -> Dict[str, A
         # For now, only use explicitly stated URLs
         urls = urls_with_scheme
         
-        # 🔐 HEADER ANALYSIS: SPF/DKIM/DMARC + Spoofing Detection (using domain folder)
+        # 🔐 HEADER ANALYSIS: SPF/DKIM/DMARC + Spoofing Detection
         header_analysis_start = time.time()
-        header_result = analyze_headers_domain(headers)  # Pass headers dict directly
+        header_analysis = analyze_email_headers(headers)
         header_analysis_time = (time.time() - header_analysis_start) * 1000
-        header_risk_score = header_result.header_risk_score if hasattr(header_result, 'header_risk_score') else 0.0
-        
-        # Extract header analysis details for display
-        header_details = {
-            "spf": header_result.spf if hasattr(header_result, 'spf') else "none",
-            "dkim": header_result.dkim if hasattr(header_result, 'dkim') else "none",
-            "dmarc": header_result.dmarc if hasattr(header_result, 'dmarc') else "none",
-            "is_spoofed": header_result.is_spoofed if hasattr(header_result, 'is_spoofed') else False,
-            "spoofing_reasons": header_result.spoofing_reasons if hasattr(header_result, 'spoofing_reasons') else [],
-            "hops": header_result.hops if hasattr(header_result, 'hops') else 0,
-            "originating_ip": header_result.originating_ip if hasattr(header_result, 'originating_ip') else None,
-        }
+        header_risk_score = header_analysis.get("header_risk_score", 0.0)
         
         # Run phishing_engine (heuristics + ML) with timing
         model_start = time.time()
@@ -218,8 +202,7 @@ def process_email_message(access_token: str, msg: Dict[str, Any]) -> Dict[str, A
             "subject": subject,
             "body": body,
             "sender": sender,
-            "urls": urls,
-            "headers": headers  # Pass headers for header authentication scoring
+            "urls": urls
         }
         result = phishing_engine(email_obj)
         model_time = (time.time() - model_start) * 1000
@@ -246,44 +229,22 @@ def process_email_message(access_token: str, msg: Dict[str, Any]) -> Dict[str, A
         )
         groq_time_ms = (time.time() - groq_start) * 1000
         
-        # ⭐ USE DOMAIN FOLDER'S RISK ENGINE: Score mapping
-        # NLP = Grok AI analysis (semantic understanding of threat)
-        # Link = Heuristic score (URL + domain ML models)
-        # Header = Email header authentication + spoofing detection
-        # Visual = 0 (not implemented yet)
-        nlp_score = ai_analysis.get("risk_score", 0.5)
-        link_score = result.get("final_score", 0.5)
-        visual_score = 0.0  # TODO: Implement logo/brand visual analysis
+        # ⭐ COMBINE SCORES: 70% Grok, 20% Heuristics, 10% Header Analysis
+        heuristic_score = result.get("final_score", 0.5)
+        grok_score = ai_analysis.get("risk_score", 0.5)
         
-        # Use domain folder's risk engine for weighted scoring
-        risk_report = compute_risk(
-            nlp_score=nlp_score,
-            link_score=link_score,
-            header_score=header_risk_score,
-            visual_score=visual_score,
-            weights={
-                "nlp": 0.35,
-                "link": 0.25,
-                "header": 0.30,
-                "visual": 0.10
-            },
-            details={
-                "header_details": header_details,
-                "heuristic_components": result.get("components"),
-            }
-        )
+        # Weighted: Grok (AI context primary) + Heuristics + Header Auth (secondary)
+        combined_final_score = (0.7 * grok_score) + (0.2 * heuristic_score) + (0.1 * header_risk_score)
         
         return {
             "id": msg["id"],
             "subject": subject,
             "sender": sender,
-            "risk_level": risk_report.severity,  # CRITICAL, HIGH, MEDIUM, LOW, SAFE
-            "final_score": risk_report.composite_score,  # ⭐ PRIMARY SCORE (0-1)
-            "confidence": risk_report.confidence,  # Confidence in the assessment
-            "nlp_score": nlp_score,  # Grok AI semantic analysis
-            "link_score": link_score,  # URL/domain ML models
-            "header_score": header_risk_score,  # Email authentication + spoofing
-            "visual_score": visual_score,  # Visual/logo analysis
+            "risk_score": result.get("risk_level"),  # Heuristic risk level (for reference)
+            "final_score": combined_final_score,  # ⭐ PRIMARY SCORE: 60% Grok + 20% Heuristics + 20% Header
+            "grok_score": grok_score,  # Email Grok AI score
+            "heuristic_score": heuristic_score,  # Heuristic score (for transparency)
+            "header_risk_score": header_risk_score,  # Email header authentication score
             "components": result.get("components"),
             "reasons": result.get("reasons"),
             "highlight": result.get("highlight"),
@@ -294,11 +255,9 @@ def process_email_message(access_token: str, msg: Dict[str, Any]) -> Dict[str, A
             "groq_time_ms": round(groq_time_ms, 2),
             "header_analysis_ms": round(header_analysis_time, 2),
             "url_analysis_ms": round(url_analysis_time, 2),
-            "ai_analysis": ai_analysis,  # Groq AI analysis
-            "header_analysis": header_details,  # Email header security analysis
-            "header_result": header_result.to_dict() if hasattr(header_result, 'to_dict') else {},  # Full header analysis
-            "url_analysis": url_analysis,  # URL analysis
-            "risk_report": risk_report.to_dict()  # Full risk report from domain engine
+            "ai_analysis": ai_analysis,  # Groq AI analysis included
+            "header_analysis": header_analysis,  # Email header security flags & authentication status
+            "url_analysis": url_analysis  # URL analysis (detached)
         }
     except Exception as e:
         error_str = str(e)
