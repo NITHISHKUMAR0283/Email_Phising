@@ -26,10 +26,61 @@ try:
 except ImportError:
     HAS_DNS = False
 
-# List of suspicious keywords/phrases for phishing detection
+# Extended suspicious keywords for phishing detection (100+)
 SUSPICIOUS_KEYWORDS = [
-    "urgent", "verify", "reset your password", "account locked", "unusual sign-in", "secure your account", "temporary suspension", "click here", "action required", "confirm your identity",
-    "mandatory", "compliance", "it policy", "training", "cybersecurity", "lockout", "survey", "deadline"
+    # Urgency tactics
+    "urgent", "immediate", "act now", "limited time", "expires", "urgent action", 
+    "time sensitive", "deadline", "asap", "immediately", "right away", "do not delay",
+    
+    # Verification/Authentication
+    "verify", "confirm", "validate", "authenticate", "confirm your identity", 
+    "verify your account", "verify identity", "reconfirm", "re-verify", "check account",
+    "update profile", "update information", "update payment", "recertify",
+    
+    # Action/Button calls
+    "click here", "click below", "click the link", "button", "link", 
+    "open attachment", "download file", "confirm now", "approve now", "accept terms",
+    "take action", "act immediately", "respond now",
+    
+    # Account security threats
+    "account locked", "account suspended", "account compromised", "account will be closed",
+    "unusual activity", "unusual login", "suspicious activity", "suspicious login",
+    "unauthorized access", "security alert", "potential fraud", "fraudulent activity",
+    "security issue", "security problem", "account limita", "restricted account",
+    
+    # Fear/Threat tactics
+    "disable", "deactivate", "close", "termination", "violation", "policy violation",
+    "breach", "compromised", "hacked", "stolen", "exposed", "at risk", 
+    "danger", "warning", "alert", "critical alert", "critical action",
+    
+    # Password/Personal info
+    "password", "reset password", "change password", "confirm password",
+    "enter password", "re-enter password", "passphrase", "pin number", "pin",
+    "ssn", "social security", "credit card", "card number", "cvv", "expiry date",
+    
+    # Authority/Impersonation
+    "administrator", "admin", "support team", "customer service", "payroll",
+    "human resources", "it department", "secure server", "security team",
+    "fraud department", "compliance", "bank", "financial institution",
+    
+    # Financial/Payment
+    "payment", "billing", "invoice", "wire transfer", "balance", "statement",
+    "refund", "claim", "promo", "prize", "reward", "bonus", "prize money",
+    "inheritance", "tax refund", "settlement",
+    
+    # Real-time urgency
+    "now", "today", "tonight", "immediately", "within 24", "within hours",
+    "before midnight", "end of day",
+    
+    # Compliance/Legal
+    "compliance required", "mandatory", "required", "required action", "it policy",
+    "training required", "certification", "license", "regulatory",
+    
+    # Additional phishing keywords
+    "validate account", "reactivate", "unlock account", "restore access",
+    "temporary suspension", "hold", "pending", "flagged", "flagged account",
+    "investigation", "suspicious pattern", "rule violation", "terms of service",
+    "unusual location", "unusual device", "new device", "unrecognized device",
 ]
 
 # Compile regex pattern once for better performance

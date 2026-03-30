@@ -14,6 +14,7 @@ from google.oauth2.credentials import Credentials
 from .phishing_engine import phishing_engine
 from .grok_analysis import generate_grok_analysis
 from .heuristics import analyze_heuristics
+from .header_analyzer import analyze_email_headers
 from .url_grok_analyzer import analyze_urls_with_grok
 from typing import Dict, Any, List
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -189,6 +190,12 @@ def process_email_message(access_token: str, msg: Dict[str, Any]) -> Dict[str, A
         # For now, only use explicitly stated URLs
         urls = urls_with_scheme
         
+        # 🔐 HEADER ANALYSIS: SPF/DKIM/DMARC + Spoofing Detection
+        header_analysis_start = time.time()
+        header_analysis = analyze_email_headers(headers)
+        header_analysis_time = (time.time() - header_analysis_start) * 1000
+        header_risk_score = header_analysis.get("header_risk_score", 0.0)
+        
         # Run phishing_engine (heuristics + ML) with timing
         model_start = time.time()
         email_obj = {
@@ -222,21 +229,22 @@ def process_email_message(access_token: str, msg: Dict[str, Any]) -> Dict[str, A
         )
         groq_time_ms = (time.time() - groq_start) * 1000
         
-        # ⭐ COMBINE SCORES: 80% Grok, 20% Heuristics (Grok is more accurate)
+        # ⭐ COMBINE SCORES: 70% Grok, 20% Heuristics, 10% Header Analysis
         heuristic_score = result.get("final_score", 0.5)
         grok_score = ai_analysis.get("risk_score", 0.5)
         
-        # Weighted: Grok is significantly more accurate than pattern-based heuristics
-        combined_final_score = (0.8 * grok_score) + (0.2 * heuristic_score)
+        # Weighted: Grok (AI context primary) + Heuristics + Header Auth (secondary)
+        combined_final_score = (0.7 * grok_score) + (0.2 * heuristic_score) + (0.1 * header_risk_score)
         
         return {
             "id": msg["id"],
             "subject": subject,
             "sender": sender,
             "risk_score": result.get("risk_level"),  # Heuristic risk level (for reference)
-            "final_score": combined_final_score,  # ⭐ PRIMARY SCORE: 70% Grok + 30% Heuristics
+            "final_score": combined_final_score,  # ⭐ PRIMARY SCORE: 60% Grok + 20% Heuristics + 20% Header
             "grok_score": grok_score,  # Email Grok AI score
             "heuristic_score": heuristic_score,  # Heuristic score (for transparency)
+            "header_risk_score": header_risk_score,  # Email header authentication score
             "components": result.get("components"),
             "reasons": result.get("reasons"),
             "highlight": result.get("highlight"),
@@ -245,8 +253,10 @@ def process_email_message(access_token: str, msg: Dict[str, Any]) -> Dict[str, A
             "fetch_time_ms": round(fetch_time, 2),
             "model_time_ms": round(model_time, 2),
             "groq_time_ms": round(groq_time_ms, 2),
+            "header_analysis_ms": round(header_analysis_time, 2),
             "url_analysis_ms": round(url_analysis_time, 2),
             "ai_analysis": ai_analysis,  # Groq AI analysis included
+            "header_analysis": header_analysis,  # Email header security flags & authentication status
             "url_analysis": url_analysis  # URL analysis (detached)
         }
     except Exception as e:
@@ -329,8 +339,15 @@ def fetch_all_emails(max_results: int = 10, token: str = None, folder: str = "IN
     }
 
 @router.get("/fetch-high-risk-emails")
-def fetch_high_risk_emails(token: str = None):
-    """Fetch high-risk emails. Accepts token from query param or falls back to session tokens."""
+def fetch_high_risk_emails(token: str = None, max_results: int = 20, folder: str = "INBOX"):
+    """Fetch high-risk emails from specific folder. 
+    Accepts token from query param or falls back to session tokens.
+    
+    Args:
+        token: Gmail access token
+        max_results: Number of emails to fetch (default 20)
+        folder: Email folder/label - "INBOX", "SPAM", "SENT", "DRAFT" (default "INBOX")
+    """
     # Use provided token or fall back to in-memory token
     access_token = token or user_tokens.get("access_token")
     if not access_token:
@@ -339,8 +356,11 @@ def fetch_high_risk_emails(token: str = None):
     creds = Credentials(token=access_token)
     service = build("gmail", "v1", credentials=creds)
     
+    # Build query to fetch from specific folder/label
+    query_label = f"label:{folder}" if folder else None
+    
     # Fetch message list
-    messages = service.users().messages().list(userId="me", maxResults=20).execute().get("messages", [])
+    messages = service.users().messages().list(userId="me", maxResults=max_results, q=query_label).execute().get("messages", [])
     
     if not messages:
         return []

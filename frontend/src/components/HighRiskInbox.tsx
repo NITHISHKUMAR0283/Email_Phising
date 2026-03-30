@@ -54,6 +54,7 @@ export default function HighRiskInbox({ onEmailSelect, cachedEmails = [], setCac
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [scanProgress, setScanProgress] = useState(0);
   const [selectedRiskFilter, setSelectedRiskFilter] = useState<'LOW' | 'HIGH_MEDIUM' | 'NONE'>('NONE');
+  const [selectedFolder, setSelectedFolder] = useState<'INBOX' | 'SPAM'>('INBOX');  // Folder selector
 
   // Check if user is authenticated on component mount and load emails or use cache
   useEffect(() => {
@@ -107,8 +108,8 @@ export default function HighRiskInbox({ onEmailSelect, cachedEmails = [], setCac
       // Get token from localStorage or use empty string (backend will check session)
       const token = localStorage.getItem('gmail_access_token') || '';
       const url = token 
-        ? `http://localhost:8000/fetch-emails-stream?max_results=10&token=${encodeURIComponent(token)}`
-        : 'http://localhost:8000/fetch-emails-stream?max_results=10';
+        ? `http://localhost:8000/fetch-emails-stream?max_results=10&token=${encodeURIComponent(token)}&folder=${selectedFolder}`
+        : `http://localhost:8000/fetch-emails-stream?max_results=10&folder=${selectedFolder}`;
       
       const eventSource = new EventSource(url);
 
@@ -308,7 +309,7 @@ export default function HighRiskInbox({ onEmailSelect, cachedEmails = [], setCac
         )}
 
         {/* Action Buttons */}
-        <div className="flex gap-4 mb-8">
+        <div className="flex gap-4 mb-8 flex-wrap">
           <button
             onClick={fetchEmails}
             disabled={loading}
@@ -316,6 +317,30 @@ export default function HighRiskInbox({ onEmailSelect, cachedEmails = [], setCac
           >
             {loading ? '⏳ Scanning...' : '🔄 Scan Emails'}
           </button>
+          
+          {/* Folder Selector */}
+          <div className="flex gap-2 ml-auto">
+            <button
+              onClick={() => { setSelectedFolder('INBOX'); setAllEmails([]); }}
+              className={`px-4 py-3 rounded-lg font-semibold transition-all duration-300 ${
+                selectedFolder === 'INBOX'
+                  ? 'bg-blue-600 text-white border-2 border-blue-400'
+                  : 'bg-slate-700 text-slate-300 border-2 border-slate-600 hover:border-blue-400'
+              }`}
+            >
+              📧 Inbox
+            </button>
+            <button
+              onClick={() => { setSelectedFolder('SPAM'); setAllEmails([]); }}
+              className={`px-4 py-3 rounded-lg font-semibold transition-all duration-300 ${
+                selectedFolder === 'SPAM'
+                  ? 'bg-red-600 text-white border-2 border-red-400'
+                  : 'bg-slate-700 text-slate-300 border-2 border-slate-600 hover:border-red-400'
+              }`}
+            >
+              🚫 Spam
+            </button>
+          </div>
         </div>
 
         {/* Email List Container */}

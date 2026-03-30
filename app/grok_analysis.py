@@ -190,34 +190,53 @@ Return ONLY a JSON array (NO markdown, NO explanation, just raw JSON):
 def create_phishing_analysis_prompt(
     email_text: str, subject: str, sender: str, urls: list, heuristics: str, risk_score: float
 ) -> str:
-    """Create prompt for Grok to analyze likely phishing email."""
+    """Create enhanced prompt for Grok to analyze likely phishing email with specific indicators."""
     
     text_preview = email_text[:500] if email_text else "No body"
     urls_str = ", ".join(urls[:3]) if urls else "None"
     
-    prompt = f"""Analyze if this email is phishing. Extract domain from sender/URLs. Return JSON only.
-IMPORTANT VALIDATION RULES:
-- URLs starting with "https://" ARE encrypted - do NOT flag as lacking HTTPS
-- Only flag URLs starting with "http://" (without S) as unencrypted
-- Do NOT flag whitespace, line breaks, or formatting issues as phishing
-- Focus on: malicious intent, credential theft, fake domains, urgent requests for sensitive data, spoofed companies
+    prompt = f"""You are a phishing detection expert. Analyze this email for phishing indicators.
 
+CRITICAL PHISHING INDICATORS TO CHECK:
+1. URGENCY TACTICS - Requests immediate action with urgency language (limited time, act now, urgent, expires, deadline)
+2. AUTHORITY IMPERSONATION - Pretends to be from banks, PayPal, Amazon, Microsoft, Apple, IRS, FBI
+3. CREDENTIAL THEFT - Asks user to verify password, enter credentials, confirm identity, click login link
+4. SPOOFED DOMAINS - Sender domain doesn't match claimed organization (fake@phishing.com claiming to be PayPal)
+5. URL MISMATCH - URLs don't match claimed sender (linking to different domain)
+6. THREAT/FEAR - Account suspended, unusual activity, unauthorized access, verify or account closes
+7. UNNATURAL REQUESTS - Unusual requests for sensitive data, wire transfers, gift cards, payment methods
+8. POOR GRAMMAR/FORMATTING - Suspicious grammar, odd formatting, unusual language patterns
+9. SUSPICIOUS ATTACHMENTS - Asking to open/download executable files or macros
+10. REPLY-TO MISMATCH - Reply-To header differs from From header (indicates compromised account)
+
+EMAIL TO ANALYZE:
 Subject: {subject[:100]}
 From: {sender[:50]}
-URLs: {urls_str}
-Heuristic Risk: {risk_score*100:.0f}%
+URLs Found: {urls_str}
+Heuristic Risk Level: {risk_score*100:.0f}%
 
-Body preview: {text_preview[:300]}
+Body (first 400 chars): {text_preview[:400]}
 
-Return ONLY valid JSON (NO other text):
+ANALYSIS RULES:
+- URLs with "https://" ARE secure/encrypted - do NOT flag as insecure
+- Only flag "http://" (without S) as potentially unencrypted
+- Look for phishing INTENT, not formatting issues
+- Consider: Does sender domain match claimed organization?
+- Does the email ask for sensitive data, credentials, or immediate payment?
+- Does the urgency level match the type of request?
+
+Return ONLY valid, parseable JSON - NO other text or chatting:
 {{
   "risk_score": 0.85,
-  "explanation": "Why this is phishing (2-3 sentences)",
-  "is_valid_domain": false,
-  "domain": "extracted domain or sender domain",
-  "highlighted_text": ["genuine malicious phrase1", "malicious phrase2"],
-  "red_flags": ["actual threat flag1", "actual threat flag2"],
-  "recommendation": "Delete/Report"
+  "is_phishing": true,
+  "explanation": "Specific phishing tactics detected (2-3 sentences, e.g., 'Pretends to be PayPal but sender domain is gmail.com; uses urgency tactics asking to verify account immediately; includes suspicious login link')",
+  "detected_techniques": ["urgency_tactic", "credential_theft", "domain_spoofing"],
+  "sender_analysis": "Domain mismatch - claims PayPal but from attacker.com",
+  "url_analysis": "URL points to unrelated domain instead of paypal.com",
+  "credential_request": true,
+  "urgency_level": "high",
+  "red_flags": ["Urgent action required", "Verify credentials immediately", "Sender domain mismatch"],
+  "recommendation": "Delete and Report as Phishing"
 }}"""
 
     return prompt
@@ -226,34 +245,57 @@ Return ONLY valid JSON (NO other text):
 def create_safety_analysis_prompt(
     email_text: str, subject: str, sender: str, urls: list, heuristics: str, risk_score: float
 ) -> str:
-    """Create prompt for Grok to analyze likely legitimate email."""
+    """Create enhanced prompt for Grok to verify legitimate email with specific checks."""
     
     text_preview = email_text[:500] if email_text else "No body"
     urls_str = ", ".join(urls[:3]) if urls else "None"
     
-    prompt = f"""Analyze if this email is legitimate. Validate domain. Return JSON only.
-IMPORTANT VALIDATION RULES:
-- URLs starting with "https://" ARE encrypted and secure - do NOT flag as lacking HTTPS
-- Only flag URLs starting with "http://" (without S) as potentially unencrypted
-- Do NOT flag whitespace, line breaks, or formatting issues as problems
-- Only flag if there are actual security concerns: mismatched domains, urgent requests, or credential theft attempts
+    prompt = f"""You are a phishing detection expert. Verify if this email is legitimate or has hidden phishing tactics.
 
+LEGITIMATE EMAIL CHARACTERISTICS:
+1. DOMAIN ALIGNMENT - Sender domain matches claimed organization (@company.com, not gmail)
+2. PROFESSIONAL TONE - Clear, professional communication without extreme urgency
+3. PERSONAL CONTEXT - References to account details, orders, or services user likely has
+4. PROPER LINKS - Links match claimed sender's official domain
+5. NO CREDENTIAL REQUESTS - Doesn't ask for passwords, PINs, credit card numbers in email
+6. NATURAL LANGUAGE - Proper grammar, coherent sentences, natural flow
+7. APPROPRIATE REQUESTS - Requests align with business relationship (order confirmation, technical support)
+8. CLEAR SENDER - Actual company sending, not intermediary claiming to represent them
+
+RED FLAGS EVEN IN LEGITIMATE-LOOKING EMAILS:
+- "Verify your account" links pointing to different domain
+- Unexpected urgency ("Confirm immediately or account closes")
+- Generic greeting ("Dear Customer" instead of by name)
+- Suspicious attachments with executable extensions
+- Reply-To address different from From address
+
+EMAIL TO VERIFY:
 Subject: {subject[:100]}
 From: {sender[:50]}
-URLs: {urls_str}
-Heuristic Risk: {risk_score*100:.0f}%
+URLs Found: {urls_str}
+Heuristic Risk Level: {risk_score*100:.0f}%
 
-Body preview: {text_preview[:300]}
+Body (first 400 chars): {text_preview[:400]}
 
-Return ONLY valid JSON (NO other text):
+VERIFICATION RULES:
+- Check sender domain legitimacy
+- Verify URLs match claims
+- Look for credential/sensitive data requests
+- Assess if urgency matches situation
+- Check for impersonation of known companies
+
+Return ONLY valid, parseable JSON - NO other text:
 {{
   "risk_score": 0.15,
-  "explanation": "Why this is legitimate (2-3 sentences)",
-  "is_valid_domain": true,
-  "domain": "extracted domain or sender domain",
-  "highlighted_text": [],
-  "red_flags": ["only real security concerns"],
-  "recommendation": "Safe to read"
+  "is_phishing": false,
+  "explanation": "Legitimate email from verified sender domain; natural language; appropriate business request",
+  "domain_verified": true,
+  "sender_domain": "paypal.com",
+  "urls_match_domain": true,
+  "credential_request": false,
+  "urgency_justified": true,
+  "red_flags": [],
+  "recommendation": "Safe to Read and Click Links"
 }}"""
 
     return prompt
