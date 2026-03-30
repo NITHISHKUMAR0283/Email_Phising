@@ -12,6 +12,15 @@ from .quiz import generate_quiz
 from .phishing_engine import load_all_models
 from .grok_analysis import generate_grok_analysis
 from datetime import datetime
+import os
+
+# Try to load environment variables from .env file (optional)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # If dotenv not installed, just use environment variables directly
+    pass
 
 
 

@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AI-powered email header analyzer for phishing detection. Detects SPF, DKIM, DMARC failures, spoofing, and routing anomalies.">
+    <title>PhishGuard — Email Header Analyzer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        /* ═══════════════════════════════════════════════════════════
+           Design Tokens
+           ═══════════════════════════════════════════════════════════ */
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #111827;
+            --bg-card: #1a2035;
+            --bg-card-hover: #1f2a45;
+            --bg-input: #0d1220;
+            --border-default: #1e293b;
+            --border-accent: #334155;
+
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+
+            --accent-blue: #3b82f6;
+            --accent-cyan: #06b6d4;
+            --accent-purple: #8b5cf6;
+            --accent-green: #10b981;
+            --accent-yellow: #f59e0b;
+            --accent-orange: #f97316;
+            --accent-red: #ef4444;
+            --accent-pink: #ec4899;
+
+            --gradient-hero: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%);
+            --gradient-safe: linear-gradient(135deg, #10b981, #06b6d4);
+            --gradient-low: linear-gradient(135deg, #10b981, #22d3ee);
+            --gradient-medium: linear-gradient(135deg, #f59e0b, #f97316);
+            --gradient-high: linear-gradient(135deg, #f97316, #ef4444);
+            --gradient-critical: linear-gradient(135deg, #ef4444, #dc2626);
+
+            --glass-bg: rgba(26, 32, 53, 0.8);
+            --glass-border: rgba(255, 255, 255, 0.06);
+            --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 24px;
+            --radius-full: 9999px;
+
+            --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           Reset & Base
+           ═══════════════════════════════════════════════════════════ */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html {
+            scroll-behavior: smooth;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           Background Glow Effects
+           ═══════════════════════════════════════════════════════════ */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -20%;
+            left: -10%;
+            width: 50vw;
+            height: 50vw;
+            background: radial-gradient(circle, rgba(59,130,246,0.08) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            bottom: -20%;
+            right: -10%;
+            width: 50vw;
+            height: 50vw;
+            background: radial-gradient(circle, rgba(139,92,246,0.06) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           Layout Container
+           ═══════════════════════════════════════════════════════════ */
+        .app-container {
+            position: relative;
+            z-index: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           Navigation Bar
+           ═══════════════════════════════════════════════════════════ */
+        .navbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 24px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            margin-bottom: 32px;
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .navbar-logo {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-sm);
+            background: var(--gradient-hero);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            box-shadow: 0 0 20px rgba(59,130,246,0.3);
+        }
+
+        .navbar-title {
+            font-size: 22px;
+            font-weight: 800;
+            background: var(--gradient-hero);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.5px;
+        }
+
+        .navbar-subtitle {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 400;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .navbar-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--accent-green);
+            font-weight: 500;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0.4); }
+            50% { box-shadow: 0 0 0 6px rgba(16,185,129,0); }
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           Hero / Tagline
+           ═══════════════════════════════════════════════════════════ */
+        .hero-section {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .hero-section h1 {
+            font-size: 36px;
+            font-weight: 900;
+            line-height: 1.2;
+            margin-bottom: 12px;
+            letter-spacing: -1px;
+        }
+
+        .hero-section h1 span {
+            background: var(--gradient-hero);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-section p {
+            font-size: 16px;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           Main Grid
+           ═══════════════════════════════════════════════════════════ */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            align-items: start;
+        }
+
+        @media (max-width: 900px) {
+            .main-grid { grid-template-columns: 1fr; }
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           Card Component
+           ═══════════════════════════════════════════════════════════ */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            transition: border-color var(--transition-normal);
+        }
+
+        .card:hover {
+            border-color: var(--border-accent);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-default);
+        }
+
+        .card-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .card-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .card-icon.blue { background: rgba(59,130,246,0.15); }
+        .card-icon.purple { background: rgba(139,92,246,0.15); }
+        .card-icon.green { background: rgba(16,185,129,0.15); }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .card-desc {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .card-body {
+            padding: 24px;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           Textarea Input
+           ═══════════════════════════════════════════════════════════ */
+        .email-input {
+            width: 100%;
+            min-height: 320px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            resize: vertical;
+            transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+            outline: none;
+        }
+
+        .email-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .email-input:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           Buttons
+           ═══════════════════════════════════════════════════════════ */
+        .btn-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: var(--radius-md);
+            font-family: var(--font-sans);
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary {
+            background: var(--gradient-hero);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(59,130,246,0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 25px rgba(59,130,246,0.4);
+        }
+
+        .btn-primary:active { transform: translateY(0); }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-default);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-card-hover);
+            color: var(--text-primary);
+            border-color: var(--border-accent);
+        }
+
+        .btn-sample {
+            background: rgba(139,92,246,0.12);
+            color: var(--accent-purple);
+            border: 1px solid rgba(139,92,246,0.2);
+            padding: 8px 14px;
+            font-size: 12px;
+            border-radius: var(--radius-sm);
+        }
+
+        .btn-sample:hover {
+            background: rgba(139,92,246,0.2);
+            border-color: rgba(139,92,246,0.4);
+        }
+
+        .sample-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        .sample-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            align-self: center;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           Loading Spinner
+           ═══════════════════════════════════════════════════════════ */
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ═══════════════════════════════════════════════════════════
+           Results Panel
+           ═══════════════════════════════════════════════════════════ */
+        .results-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Severity Banner */
+        .severity-banner {
+            padding: 28px;
+            border-radius: var(--radius-lg);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .severity-banner::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: inherit;
+            opacity: 0.1;
+            z-index: 0;
+        }
+
+        .severity-banner > * { position: relative; z-index: 1; }
+
+        .severity-banner.safe { background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(6,182,212,0.1)); border: 1px solid rgba(16,185,129,0.3); }
+        .severity-banner.low { background: linear-gradient(135deg, rgba(16,185,129,0.12), rgba(34,211,238,0.08)); border: 1px solid rgba(16,185,129,0.25); }
+        .severity-banner.medium { background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(249,115,22,0.1)); border: 1px solid rgba(245,158,11,0.3); }
+        .severity-banner.high { background: linear-gradient(135deg, rgba(249,115,22,0.15), rgba(239,68,68,0.1)); border: 1px solid rgba(249,115,22,0.3); }
+        .severity-banner.critical { background: linear-gradient(135deg, rgba(239,68,68,0.2), rgba(220,38,38,0.12)); border: 1px solid rgba(239,68,68,0.4); }
+
+        .severity-emoji {
+            font-size: 48px;
+            margin-bottom: 8px;
+            animation: bounce-in 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        @keyframes bounce-in {
+            0% { transform: scale(0); opacity: 0; }
+            60% { transform: scale(1.2); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .severity-label {
+            font-size: 28px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .severity-label.safe { color: var(--accent-green); }
+        .severity-label.low { color: var(--accent-cyan); }
+        .severity-label.medium { color: var(--accent-yellow); }
+        .severity-label.high { color: var(--accent-orange); }
+        .severity-label.critical { color: var(--accent-red); }
+
+        .severity-score {
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        /* Auth Status Badges */
+        .auth-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+        }
+
+        .auth-badge {
+            background: var(--bg-card);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            text-align: center;
+            transition: transform var(--transition-fast);
+        }
+
+        .auth-badge:hover { transform: translateY(-2px); }
+
+        .auth-badge-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .auth-badge-status {
+            font-size: 16px;
+            font-weight: 800;
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+            padding: 4px 12px;
+            border-radius: var(--radius-full);
+            display: inline-block;
+        }
+
+        .auth-badge-status.pass { color: var(--accent-green); background: rgba(16,185,129,0.12); }
+        .auth-badge-status.fail { color: var(--accent-red); background: rgba(239,68,68,0.12); }
+        .auth-badge-status.softfail { color: var(--accent-orange); background: rgba(249,115,22,0.12); }
+        .auth-badge-status.none { color: var(--text-muted); background: rgba(100,116,139,0.12); }
+        .auth-badge-status.temperror { color: var(--accent-yellow); background: rgba(245,158,11,0.12); }
+        .auth-badge-status.permerror { color: var(--accent-red); background: rgba(239,68,68,0.12); }
+
+        /* Detail Rows */
+        .detail-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .detail-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: var(--bg-input);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            transition: background var(--transition-fast);
+        }
+
+        .detail-row:hover { background: var(--bg-card-hover); }
+
+        .detail-key {
+            color: var(--text-secondary);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .detail-value {
+            font-weight: 600;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            max-width: 55%;
+            text-align: right;
+            word-break: break-all;
+        }
+
+        .detail-value.danger { color: var(--accent-red); }
+        .detail-value.warn { color: var(--accent-orange); }
+        .detail-value.ok { color: var(--accent-green); }
+        .detail-value.neutral { color: var(--text-secondary); }
+
+        /* Spoofing Alerts */
+        .alert-box {
+            padding: 14px 18px;
+            border-radius: var(--radius-md);
+            font-size: 13px;
+            line-height: 1.6;
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        .alert-box.danger {
+            background: rgba(239,68,68,0.08);
+            border: 1px solid rgba(239,68,68,0.2);
+            color: #fca5a5;
+        }
+
+        .alert-box.warn {
+            background: rgba(245,158,11,0.08);
+            border: 1px solid rgba(245,158,11,0.2);
+            color: #fcd34d;
+        }
+
+        .alert-box.info {
+            background: rgba(59,130,246,0.08);
+            border: 1px solid rgba(59,130,246,0.2);
+            color: #93c5fd;
+        }
+
+        .alert-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 24px;
+            text-align: center;
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            opacity: 0.4;
+        }
+
+        .empty-state-text {
+            font-size: 16px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .empty-state-hint {
+            font-size: 13px;
+            color: var(--text-muted);
+            opacity: 0.6;
+            margin-top: 8px;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           Risk Gauge (circular)
+           ═══════════════════════════════════════════════════════════ */
+        .gauge-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+            margin: 8px 0;
+        }
+
+        .gauge-svg {
+            width: 100px;
+            height: 100px;
+            transform: rotate(-90deg);
+        }
+
+        .gauge-bg {
+            fill: none;
+            stroke: var(--border-default);
+            stroke-width: 6;
+        }
+
+        .gauge-fill {
+            fill: none;
+            stroke-width: 6;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.5s;
+        }
+
+        .gauge-label {
+            text-align: left;
+        }
+
+        .gauge-label .value {
+            font-size: 32px;
+            font-weight: 900;
+            font-family: var(--font-mono);
+        }
+
+        .gauge-label .sublabel {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           Slide-in Animation
+           ═══════════════════════════════════════════════════════════ */
+        .slide-in {
+            animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+
+        .slide-in:nth-child(2) { animation-delay: 0.08s; }
+        .slide-in:nth-child(3) { animation-delay: 0.16s; }
+        .slide-in:nth-child(4) { animation-delay: 0.24s; }
+        .slide-in:nth-child(5) { animation-delay: 0.32s; }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           Footer
+           ═══════════════════════════════════════════════════════════ */
+        .footer {
+            text-align: center;
+            padding: 32px 0 16px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .footer a {
+            color: var(--accent-blue);
+            text-decoration: none;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           Scrollbar
+           ═══════════════════════════════════════════════════════════ */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-primary); }
+        ::-webkit-scrollbar-thumb { background: var(--border-accent); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-md);
+            padding: 14px 20px;
+            font-size: 13px;
+            color: var(--text-primary);
+            z-index: 1000;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast.error { border-color: rgba(239,68,68,0.3); }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+
+        <!-- ══ Navbar ══ -->
+        <nav class="navbar" id="navbar">
+            <div class="navbar-brand">
+                <div class="navbar-logo">🛡️</div>
+                <div>
+                    <div class="navbar-title">PhishGuard</div>
+                    <div class="navbar-subtitle">Header Threat Intelligence</div>
+                </div>
+            </div>
+            <div class="navbar-status">
+                <span class="status-dot"></span>
+                Engine Online
+            </div>
+        </nav>
+
+        <!-- ══ Hero ══ -->
+        <section class="hero-section">
+            <h1>Analyze Email Headers for <span>Phishing Threats</span></h1>
+            <p>Paste raw email headers or a full RFC 822 message below. Our engine checks SPF, DKIM, DMARC, routing hops, and spoofing patterns in real-time.</p>
+        </section>
+
+        <!-- ══ Main Grid ══ -->
+        <div class="main-grid">
+
+            <!-- Left Column: Input -->
+            <div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-header-left">
+                            <div class="card-icon blue">📧</div>
+                            <div>
+                                <div class="card-title">Email Input</div>
+                                <div class="card-desc">Paste raw headers or full message</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <textarea
+                            id="emailInput"
+                            class="email-input"
+                            placeholder="Paste your raw email headers here...
+
+Example:
+From: &quot;PayPal Security&quot; &lt;security@evil.xyz&gt;
+Return-Path: &lt;bounces@evil.xyz&gt;
+Authentication-Results: mx.google.com;
+    spf=fail smtp.mailfrom=evil.xyz;
+    dkim=none;
+    dmarc=fail
+Received: from relay.evil.net ([203.0.113.42])
+    by mx.google.com ...
+Date: Sat, 29 Mar 2026 03:14:07 +0000
+Subject: Urgent: Verify Your Account"
+                            spellcheck="false"
+                        ></textarea>
+
+                        <div class="sample-row">
+                            <span class="sample-label">Try a sample →</span>
+                            <button class="btn btn-sample" id="btnSamplePhish" onclick="loadSample('phishing')">🎣 Phishing</button>
+                            <button class="btn btn-sample" id="btnSampleClean" onclick="loadSample('clean')">✅ Clean</button>
+                            <button class="btn btn-sample" id="btnSampleSuspicious" onclick="loadSample('suspicious')">⚠️ Suspicious</button>
+                        </div>
+
+                        <div class="btn-row">
+                            <button class="btn btn-primary" id="btnAnalyze" onclick="analyzeEmail()">
+                                <span id="btnText">🔍 Analyze Headers</span>
+                                <div class="spinner" id="spinner"></div>
+                            </button>
+                            <button class="btn btn-secondary" id="btnClear" onclick="clearAll()">✕ Clear</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Results -->
+            <div id="resultsContainer">
+                <!-- Empty state -->
+                <div class="card" id="emptyState">
+                    <div class="card-body">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">🔬</div>
+                            <div class="empty-state-text">No analysis yet</div>
+                            <div class="empty-state-hint">Paste email headers and click "Analyze" to begin</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results (hidden initially) -->
+                <div id="resultsContent" class="results-panel" style="display: none;"></div>
+            </div>
+        </div>
+
+        <div class="footer">
+            PhishGuard — Built for the Hackathon &nbsp;|&nbsp; SPF · DKIM · DMARC · Routing · Spoofing Detection
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        /* ═════════════════════════════════════════════════════════
+           State & Helpers
+           ═════════════════════════════════════════════════════════ */
+        let samplesCache = null;
+
+        function showToast(msg, isError = false) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = 'toast' + (isError ? ' error' : '');
+            requestAnimationFrame(() => t.classList.add('show'));
+            setTimeout(() => t.classList.remove('show'), 3000);
+        }
+
+        function setLoading(on) {
+            const btn = document.getElementById('btnAnalyze');
+            const text = document.getElementById('btnText');
+            const spinner = document.getElementById('spinner');
+            btn.disabled = on;
+            text.style.display = on ? 'none' : 'inline-flex';
+            spinner.style.display = on ? 'inline-block' : 'none';
+        }
+
+        /* ═════════════════════════════════════════════════════════
+           Load sample emails
+           ═════════════════════════════════════════════════════════ */
+        async function loadSample(type) {
+            try {
+                if (!samplesCache) {
+                    const res = await fetch('/api/sample');
+                    samplesCache = await res.json();
+                }
+                document.getElementById('emailInput').value = samplesCache[type] || '';
+                showToast(`Loaded ${type} sample email`);
+            } catch(e) {
+                showToast('Failed to load sample', true);
+            }
+        }
+
+        /* ═════════════════════════════════════════════════════════
+           Main analyze function
+           ═════════════════════════════════════════════════════════ */
+        async function analyzeEmail() {
+            const raw = document.getElementById('emailInput').value.trim();
+            if (!raw) {
+                showToast('Please paste email headers first', true);
+                return;
+            }
+
+            setLoading(true);
+
+            try {
+                const res = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ raw_email: raw })
+                });
+
+                const data = await res.json();
+
+                if (!res.ok || data.error) {
+                    throw new Error(data.error || 'Analysis failed');
+                }
+
+                renderResults(data);
+            } catch(e) {
+                showToast(e.message, true);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        /* ═════════════════════════════════════════════════════════
+           Clear
+           ═════════════════════════════════════════════════════════ */
+        function clearAll() {
+            document.getElementById('emailInput').value = '';
+            document.getElementById('emptyState').style.display = 'block';
+            document.getElementById('resultsContent').style.display = 'none';
+        }
+
+        /* ═════════════════════════════════════════════════════════
+           Render results
+           ═════════════════════════════════════════════════════════ */
+        function renderResults(data) {
+            const ha = data.header_analysis;
+            const rr = data.risk_report;
+
+            // Use header_risk_score directly for severity (avoids dilution
+            // when NLP/link/visual scores are not yet provided).
+            const score = ha.header_risk_score;
+            const severity = score >= 0.80 ? 'critical'
+                           : score >= 0.60 ? 'high'
+                           : score >= 0.40 ? 'medium'
+                           : score >= 0.20 ? 'low'
+                           : 'safe';
+
+            const emojiMap = { safe: '✅', low: '🟢', medium: '🟡', high: '🟠', critical: '🔴' };
+            const emoji = emojiMap[severity] || '❓';
+
+            // Gauge
+            const circumference = 2 * Math.PI * 42;
+            const offset = circumference - (ha.header_risk_score * circumference);
+            const gaugeColorMap = {
+                safe: '#10b981', low: '#06b6d4', medium: '#f59e0b',
+                high: '#f97316', critical: '#ef4444'
+            };
+            const gaugeColor = gaugeColorMap[severity] || '#64748b';
+
+            // Build spoofing alerts
+            let alertsHTML = '';
+            if (ha.spoofing_reasons && ha.spoofing_reasons.length > 0) {
+                alertsHTML = ha.spoofing_reasons.map(r =>
+                    `<div class="alert-box danger">
+                        <span class="alert-icon">⚠️</span>
+                        <span>${escapeHtml(r)}</span>
+                    </div>`
+                ).join('');
+            }
+
+            if (ha.time_anomaly) {
+                alertsHTML += `<div class="alert-box warn">
+                    <span class="alert-icon">🕐</span>
+                    <span>Time-of-arrival anomaly: Email was sent during unusual hours (midnight – 6 AM)</span>
+                </div>`;
+            }
+
+            if (!ha.is_spoofed && !ha.time_anomaly) {
+                alertsHTML = `<div class="alert-box info">
+                    <span class="alert-icon">✅</span>
+                    <span>No spoofing indicators or anomalies detected.</span>
+                </div>`;
+            }
+
+            const html = `
+                <!-- Severity Banner -->
+                <div class="severity-banner ${severity} slide-in">
+                    <div class="severity-emoji">${emoji}</div>
+                    <div class="severity-label ${severity}">${severity.toUpperCase()}</div>
+                    <div class="severity-score">Header Risk Score: ${(ha.header_risk_score * 100).toFixed(0)}%</div>
+                </div>
+
+                <!-- Risk Gauge + Auth Badges -->
+                <div class="card slide-in">
+                    <div class="card-header">
+                        <div class="card-header-left">
+                            <div class="card-icon green">🔐</div>
+                            <div>
+                                <div class="card-title">Authentication Protocols</div>
+                                <div class="card-desc">SPF, DKIM, and DMARC verification results</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="gauge-container">
+                            <svg class="gauge-svg" viewBox="0 0 100 100">
+                                <circle class="gauge-bg" cx="50" cy="50" r="42" />
+                                <circle class="gauge-fill" cx="50" cy="50" r="42"
+                                    stroke="${gaugeColor}"
+                                    stroke-dasharray="${circumference}"
+                                    stroke-dashoffset="${offset}" />
+                            </svg>
+                            <div class="gauge-label">
+                                <div class="value" style="color:${gaugeColor}">${(ha.header_risk_score * 100).toFixed(0)}%</div>
+                                <div class="sublabel">Header Risk</div>
+                            </div>
+                        </div>
+                        <div class="auth-grid" style="margin-top: 16px;">
+                            <div class="auth-badge">
+                                <div class="auth-badge-label">SPF</div>
+                                <div class="auth-badge-status ${authClass(ha.spf)}">${ha.spf}</div>
+                            </div>
+                            <div class="auth-badge">
+                                <div class="auth-badge-label">DKIM</div>
+                                <div class="auth-badge-status ${authClass(ha.dkim)}">${ha.dkim}</div>
+                            </div>
+                            <div class="auth-badge">
+                                <div class="auth-badge-label">DMARC</div>
+                                <div class="auth-badge-status ${authClass(ha.dmarc)}">${ha.dmarc}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Routing & Identity Details -->
+                <div class="card slide-in">
+                    <div class="card-header">
+                        <div class="card-header-left">
+                            <div class="card-icon purple">🌐</div>
+                            <div>
+                                <div class="card-title">Routing & Identity</div>
+                                <div class="card-desc">Hop analysis, IP origin, and sender details</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="detail-list">
+                            <div class="detail-row">
+                                <span class="detail-key">📡 Routing Hops</span>
+                                <span class="detail-value ${ha.hops > 5 ? 'warn' : 'ok'}">${ha.hops}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-key">🌍 Originating IP</span>
+                                <span class="detail-value neutral">${ha.originating_ip || 'N/A'}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-key">🔗 rDNS Match</span>
+                                <span class="detail-value ${ha.rdns_match === true ? 'ok' : ha.rdns_match === false ? 'danger' : 'neutral'}">
+                                    ${ha.rdns_match === true ? '✓ Match' : ha.rdns_match === false ? '✕ Mismatch' : 'N/A'}
+                                </span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-key">👤 Display Name</span>
+                                <span class="detail-value neutral">${escapeHtml(ha.display_name || 'N/A')}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-key">📬 From Address</span>
+                                <span class="detail-value neutral">${escapeHtml(ha.from_address || 'N/A')}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-key">↩️ Return-Path</span>
+                                <span class="detail-value ${ha.return_path && ha.from_address && extractDomain(ha.return_path) !== extractDomain(ha.from_address) ? 'danger' : 'neutral'}">
+                                    ${escapeHtml(ha.return_path || 'N/A')}
+                                </span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-key">🕐 Time Anomaly</span>
+                                <span class="detail-value ${ha.time_anomaly ? 'warn' : 'ok'}">${ha.time_anomaly ? '⚠ Unusual Hours' : '✓ Normal'}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Spoofing Alerts -->
+                <div class="card slide-in">
+                    <div class="card-header">
+                        <div class="card-header-left">
+                            <div class="card-icon blue">🎭</div>
+                            <div>
+                                <div class="card-title">Spoofing Analysis</div>
+                                <div class="card-desc">Brand impersonation and identity mismatch checks</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        ${alertsHTML}
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('emptyState').style.display = 'none';
+            const container = document.getElementById('resultsContent');
+            container.innerHTML = html;
+            container.style.display = 'flex';
+
+            // Animate gauge on next frame
+            requestAnimationFrame(() => {
+                const fill = container.querySelector('.gauge-fill');
+                if (fill) fill.style.strokeDashoffset = offset;
+            });
+        }
+
+        /* ═════════════════════════════════════════════════════════
+           Utilities
+           ═════════════════════════════════════════════════════════ */
+        function authClass(status) {
+            if (!status) return 'none';
+            const s = status.toLowerCase();
+            if (s === 'pass') return 'pass';
+            if (s === 'fail') return 'fail';
+            if (s === 'softfail') return 'softfail';
+            if (s === 'temperror' || s === 'permerror') return 'temperror';
+            return 'none';
+        }
+
+        function extractDomain(addr) {
+            if (!addr) return '';
+            const at = addr.lastIndexOf('@');
+            return at >= 0 ? addr.substring(at + 1).toLowerCase() : '';
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.appendChild(document.createTextNode(str || ''));
+            return div.innerHTML;
+        }
+
+        // Allow Ctrl+Enter to submit
+        document.getElementById('emailInput').addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') analyzeEmail();
+        });
+    </script>
+</body>
+</html>

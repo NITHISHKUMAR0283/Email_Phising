@@ -1,6 +1,7 @@
 
 import React from 'react';
 import RiskBadge from './RiskBadge';
+import ScoreBreakdown from './ScoreBreakdown';
 import Quiz from './Quiz';
 
 // Color map for highlights based on risk
@@ -48,25 +49,42 @@ function HeuristicBadges({ heuristics }: { heuristics: string[] }) {
 
 // Main EmailDetail component
 const EmailDetail: React.FC<{ email: any }> = ({ email }) => (
-  <div className="w-full bg-white rounded shadow p-4">
-    <div className="flex items-center justify-between mb-2">
-      <h2 className="font-bold text-lg break-all">{email.subject}</h2>
-      <RiskBadge risk={email.risk_score} />
-    </div>
-    <div className="mb-2 text-xs text-gray-500">From: {email.sender}</div>
-    <div className="mb-4 text-base leading-relaxed break-words">
-      {highlightText(email.email_text, email.highlighted_tokens, email.risk_score)}
-    </div>
-    <div className="mb-2">
-      <span className="font-semibold">Heuristics:</span>
-      <HeuristicBadges heuristics={email.heuristics} />
-    </div>
-    {email.quiz && email.quiz.length > 0 && (
-      <div className="mt-4">
-        <Quiz quiz={email.quiz} />
+  <div className="w-full bg-white rounded shadow">
+    {/* Score Breakdown - Prominent for Judges */}
+    <ScoreBreakdown email={email} />
+
+    {/* Email Header */}
+    <div className="px-4 pt-4 lg:px-6 lg:pt-6">
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="font-bold text-lg break-all">{email.subject}</h2>
+        <RiskBadge risk={email.risk_score || email.risk_level} />
       </div>
-    )}
-    <div className="text-xs text-gray-400 mt-2">Timestamp: {email.timestamp}</div>
+      <div className="mb-2 text-xs text-gray-500">From: {email.sender}</div>
+    </div>
+
+    {/* Email Body with Highlights */}
+    <div className="px-4 py-4 lg:px-6">
+      <div className="mb-4 text-base leading-relaxed break-words bg-gray-50 p-4 rounded border border-gray-200 max-h-96 overflow-y-auto">
+        {highlightText(email.email_text || email.body || '', email.highlighted_tokens || email.highlight?.phrases || [], email.risk_score || email.risk_level)}
+      </div>
+    </div>
+
+    {/* Heuristics Section */}
+    <div className="px-4 pb-4 lg:px-6 lg:pb-6">
+      <div className="mb-2">
+        <span className="font-semibold">Detection Details:</span>
+        <HeuristicBadges heuristics={email.heuristics || email.reasons || []} />
+      </div>
+
+      {/* Quiz Section if available */}
+      {email.quiz && email.quiz.length > 0 && (
+        <div className="mt-4 p-4 bg-blue-50 rounded border border-blue-200">
+          <Quiz quiz={email.quiz} />
+        </div>
+      )}
+
+      <div className="text-xs text-gray-400 mt-4">Timestamp: {email.timestamp}</div>
+    </div>
   </div>
 );
 

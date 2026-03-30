@@ -565,14 +565,51 @@ def analyze_heuristics(email_text: str, sender: Optional[str], urls: Optional[Li
     Analyze email using heuristics: keywords, URLs, headers, sender domain.
     Returns a dict with a list of triggered heuristic signals and detailed URL analysis.
     """
+    from .whitelist import is_domain_whitelisted, is_legitimate_urgency, is_educational_content
+    
     signals = []
     text_lower = email_text.lower()
     url_details = []
     
+    # Check if sender is whitelisted
+    sender_whitelisted = False
+    if sender:
+        try:
+            sender_domain = sender.split("@")[1].split(">")[0].lower() if "@" in sender else None
+            sender_whitelisted = is_domain_whitelisted(sender_domain) if sender_domain else False
+        except:
+            sender_whitelisted = False
+    
     # Keyword check - use compiled regex pattern for efficiency
     keyword_matches = KEYWORDS_PATTERN.findall(text_lower)
-    for kw in set(keyword_matches):  # Use set to avoid duplicates
-        signals.append(f"Suspicious phrase: {kw}")
+    
+    # If sender is whitelisted AND email has legitimate urgency/educational content, reduce keywords
+    if sender_whitelisted:
+        has_legitimate_urgency = is_legitimate_urgency(email_text)
+        has_educational_content = is_educational_content(email_text)
+        
+        # If legitimate context, only add critical phishing keywords
+        if has_legitimate_urgency or has_educational_content:
+            # Only flag extreme phishing keywords, not generic ones
+            critical_phishing = [
+                "account suspended", "verify your account immediately", "click here to verify",
+                "confirm your identity now", "reset your password immediately",
+                "unauthorized access", "unusual activity detected", "account will be closed",
+                "urgent action required for account"
+            ]
+            for kw in set(keyword_matches):
+                # Only add if it's a CRITICAL phishing keyword
+                if any(critical in kw.lower() for critical in ["suspended", "closed", "compromised", "locked", "unauthorized"]):
+                    signals.append(f"Suspicious phrase: {kw}")
+            # Don't add generic keywords for whitelisted domains with legitimate context
+        else:
+            # Whitelisted but no legitimate context - still check keywords
+            for kw in set(keyword_matches):
+                signals.append(f"Suspicious phrase: {kw}")
+    else:
+        # Not whitelisted - add all keyword matches
+        for kw in set(keyword_matches):
+            signals.append(f"Suspicious phrase: {kw}")
     
     # URL/domain check with detailed analysis
     if urls:
