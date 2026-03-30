@@ -3,6 +3,7 @@ import DetectionForm from './components/DetectionForm';
 import EmailList from './components/EmailList';
 import EmailDetail from './components/EmailDetail';
 import HighRiskInbox from './components/HighRiskInbox';
+import EmailDetailPage from './components/EmailDetailPage';
 import ParticleBackground from './components/ParticleBackground';
 import React, { useState, useEffect } from 'react';
 
@@ -12,11 +13,45 @@ function App() {
   const [tab, setTab] = useState<'gmail' | 'manual'>('gmail');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [selectedEmail, setSelectedEmail] = useState<any>(null);
+  const [cachedEmails, setCachedEmails] = useState<any[]>([]); // Cache emails to prevent refetch
 
-  // Check authentication on mount
+  // Check authentication on mount and restore token from localStorage
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        // Check for token in URL (from OAuth callback)
+        const urlParams = new URLSearchParams(window.location.search);
+        const tokenFromUrl = urlParams.get('token');
+        
+        if (tokenFromUrl) {
+          // Save token to localStorage
+          localStorage.setItem('gmail_access_token', tokenFromUrl);
+          console.log('✓ Token saved to localStorage');
+          // Clean up URL
+          window.history.replaceState({}, document.title, window.location.pathname);
+          setIsAuthenticated(true);
+          setCheckingAuth(false);
+          return;
+        }
+        
+        // Try to use token from localStorage
+        const savedToken = localStorage.getItem('gmail_access_token');
+        if (savedToken) {
+          console.log('✓ Using saved token from localStorage');
+          const response = await fetch('http://localhost:8000/check-auth', {
+            headers: {
+              'Authorization': `Bearer ${savedToken}`
+            }
+          });
+          setIsAuthenticated(response.ok);
+          if (response.ok) {
+            setCheckingAuth(false);
+            return;
+          }
+        }
+        
+        // If no saved token, check backend
         const response = await fetch('http://localhost:8000/check-auth');
         setIsAuthenticated(response.ok);
       } catch (err) {
@@ -143,6 +178,7 @@ function App() {
                 <button
                   onClick={() => {
                     setIsAuthenticated(false);
+                    localStorage.removeItem('gmail_access_token');
                     window.location.href = 'http://localhost:8000/logout';
                   }}
                   className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-semibold hover:from-red-600 hover:to-red-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-red-500/50 border border-red-400/30"
@@ -304,7 +340,11 @@ function App() {
       {/* Content Area */}
       <div className="relative z-10 flex-1">
         {tab === 'gmail' ? (
-          <HighRiskInbox />
+          selectedEmail ? (
+            <EmailDetailPage email={selectedEmail} onBack={() => setSelectedEmail(null)} />
+          ) : (
+            <HighRiskInbox onEmailSelect={setSelectedEmail} cachedEmails={cachedEmails} setCachedEmails={setCachedEmails} />
+          )
         ) : (
           <div className="max-w-7xl mx-auto px-6 py-8 w-full">
             <div className="flex flex-col lg:flex-row gap-8">

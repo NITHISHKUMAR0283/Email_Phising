@@ -298,13 +298,17 @@ def analyze_url_detailed(url: str) -> Dict[str, any]:
     Returns comprehensive analysis with actual data, not patterns!
     """
     try:
+        # Normalize URL: add https:// if protocol is missing
+        if not url.startswith(("http://", "https://", "ftp://")):
+            url = "https://" + url  # Default to HTTPS for missing schemes
+        
         parsed = urlparse(url)
         ext = tldextract.extract(url)
         
         domain = f"{ext.domain}.{ext.suffix}" if ext.domain and ext.suffix else parsed.netloc
         subdomain = ext.subdomain if ext.subdomain else "none"
         tld = f".{ext.suffix}" if ext.suffix else "unknown"
-        scheme = parsed.scheme or "http"
+        scheme = parsed.scheme  # No default - assume https if normalized above
         
         suspicious_indicators = []
         reasons = []
@@ -324,11 +328,11 @@ def analyze_url_detailed(url: str) -> Dict[str, any]:
             reasons.append("Why: HTTP lacks encryption. Any login credentials transmitted can be intercepted in transit")
             risk_score += 15
         
-        # 3. Check for suspicious keywords in URL structure
+        # 3. Check for suspicious keywords in URL structure (only combined with other signs)
+        # Don't penalize heavily - legitimate sites use these terms
         if SUSPICIOUS_URL_KEYWORDS.search(url):
-            suspicious_indicators.append("🔴 Phishing Keywords in URL")
-            reasons.append("Why: URL contains 'login', 'verify', 'confirm', 'secure' - common phishing tactics to urgency")
-            risk_score += 10
+            # Only flag if combined with other suspicious indicators
+            pass  # Don't add risk for keywords alone
         
         # 4. Check for suspicious TLD
         if tld in SUSPICIOUS_TLDS:
@@ -372,14 +376,11 @@ def analyze_url_detailed(url: str) -> Dict[str, any]:
         technical_details["dns_records"] = dns_records
         
         if dns_records["status"] == "success":
-            if not dns_records["mx_records"]:
-                suspicious_indicators.append("⚠️  No MX Records (can't receive email)")
-                reasons.append("Why: Domain can't receive emails but tries to impersonate business - classic phishing setup")
-                risk_score += 15
-            elif not dns_records["a_records"]:
-                suspicious_indicators.append("🔴 No A Records (domain doesn't resolve properly)")
-                reasons.append("Why: Domain can't resolve to valid server - indicates newly created phishing infrastructure")
-                risk_score += 18
+            # Only flag if BOTH MX and A records are missing (complete DNS failure)
+            if not dns_records["mx_records"] and not dns_records["a_records"]:
+                suspicious_indicators.append("🔴 DNS Resolution Failed (no A or MX records)")
+                reasons.append("Why: Domain has no valid DNS records - can't establish connection")
+                risk_score += 12
         
         # 🔒 LAYER 4: SSL CERTIFICATE CHECK
         ssl_info = check_ssl_certificate(domain)
@@ -393,11 +394,10 @@ def analyze_url_detailed(url: str) -> Dict[str, any]:
                         suspicious_indicators.append("🚨 Self-Signed Certificate")
                         reasons.append("Why: Self-signed certs not issued by authority - attacker generated this")
                         risk_score += 20
-                    # Check for free certificate but mismatched org (Let's Encrypt is fine, but watch mismatch)
-                    if ssl_info["org_name"] and domain.split('.')[0] not in ssl_info["org_name"].lower():
-                        suspicious_indicators.append("⚠️  Certificate Organization Mismatch")
-                        reasons.append(f"Why: SSL cert issued to '{ssl_info['org_name']}' but URL is '{domain}' - domain mismatch")
-                        risk_score += 8
+# Only flag org mismatch if it's CLEARLY wrong (e.g., PayPal cert on Google domain)
+                # Many legitimate sites use generic certificates or CDNs
+                # Skip this check as it creates too many false positives
+                pass
                 
                 if ssl_info["validity_days"] is not None and ssl_info["validity_days"] < 30:
                     suspicious_indicators.append(f"📅 Very Short SSL Validity ({ssl_info['validity_days']} days)")
@@ -424,10 +424,12 @@ def analyze_url_detailed(url: str) -> Dict[str, any]:
             technical_details["content_analysis"] = content_info
             
             if content_info["status"] == "success":
-                if content_info["has_password_form"]:
-                    suspicious_indicators.append("🛑 Password Input Form Detected")
-                    reasons.append("Why: Password form on suspicious URL = credential harvest. Legitimate sites use OAuth")
-                    risk_score += 25
+                # Password forms are normal on login pages - only flag if combined with other signs
+                # Don't penalize standalone
+                if content_info["has_password_form"] and risk_score >= 30:
+                    suspicious_indicators.append("🔴 Password Form + Other Red Flags")
+                    reasons.append("Why: Password form combined with other phishing indicators")
+                    risk_score += 12
                 
                 if content_info["form_count"] > 3:
                     suspicious_indicators.append(f"📋 Multiple Forms ({content_info['form_count']})")
@@ -450,11 +452,11 @@ def analyze_url_detailed(url: str) -> Dict[str, any]:
             redirect_info = check_redirect_chain(url)
             technical_details["redirect_info"] = redirect_info
             
-            if redirect_info["redirect_count"] > 3:
+            if redirect_info["redirect_count"] > 5:
                 suspicious_indicators.append(f"🔗 Excessive Redirects ({redirect_info['redirect_count']})")
                 reasons.append(f"Why: URL redirects {redirect_info['redirect_count']} times - attacker obfuscating final destination")
-                risk_score += 15
-            elif redirect_info["redirect_count"] > 0:
+                risk_score += 10
+            elif redirect_info["redirect_count"] >= 1:
                 technical_details["final_url_after_redirects"] = redirect_info["final_url"]
         
         # 🎯 LAYER 8: TYPOSQUATTING & HOMOGRAPH ATTACKS

@@ -16,7 +16,12 @@ interface EmailData {
   timestamp: string;
   fetch_time_ms: number;
   model_time_ms: number;
+  groq_time_ms?: number;
   highlight?: { urls: string[]; phrases: string[] };
+  ai_analysis?: any;
+  groq_domain?: string;
+  groq_is_valid_domain?: boolean;
+  groq_highlighted_text?: string[];
 }
 
 interface FetchResponse {
@@ -29,7 +34,13 @@ interface FetchResponse {
   phishing_count: number;
 }
 
-export default function HighRiskInbox() {
+interface HighRiskInboxProps {
+  onEmailSelect?: (email: EmailData) => void;
+  cachedEmails?: EmailData[];
+  setCachedEmails?: (emails: EmailData[]) => void;
+}
+
+export default function HighRiskInbox({ onEmailSelect, cachedEmails = [], setCachedEmails }: HighRiskInboxProps) {
   const [allEmails, setAllEmails] = useState<EmailData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -44,16 +55,30 @@ export default function HighRiskInbox() {
   const [scanProgress, setScanProgress] = useState(0);
   const [selectedRiskFilter, setSelectedRiskFilter] = useState<'LOW' | 'HIGH_MEDIUM' | 'NONE'>('NONE');
 
-  // Check if user is authenticated on component mount
+  // Check if user is authenticated on component mount and load emails or use cache
   useEffect(() => {
     const checkAuthentication = async () => {
       try {
-        const response = await fetch('http://localhost:8000/check-auth');
+        // Get token from localStorage
+        const token = localStorage.getItem('gmail_access_token');
+        
+        const fetchOptions: RequestInit = token 
+          ? { headers: { 'Authorization': `Bearer ${token}` } }
+          : {};
+        
+        const response = await fetch('http://localhost:8000/check-auth', fetchOptions);
         if (response.ok) {
           setIsAuthenticated(true);
           setCheckingAuth(false);
-          // After confirming auth, fetch emails
-          fetchEmails();
+          // Check cache first - if populated, use it
+          if (cachedEmails && cachedEmails.length > 0) {
+            console.log('✓ Using cached emails:', cachedEmails.length);
+            setAllEmails(cachedEmails);
+          } else {
+            // Cache is empty, fetch fresh emails
+            console.log('📧 Cache empty, fetching fresh emails...');
+            fetchEmails();
+          }
         } else {
           setIsAuthenticated(false);
           setCheckingAuth(false);
@@ -75,20 +100,32 @@ export default function HighRiskInbox() {
     setTiming({ fetch_time_ms: 0, total_model_time_ms: 0, total_time_ms: 0 });
     setScanProgress(0);
     
+    let collectedEmails: EmailData[] = [];  // Track emails locally for caching
+    let expectedTotal = 10;  // Default expected total
+    
     try {
-      const eventSource = new EventSource(
-        'http://localhost:8000/fetch-emails-stream?max_results=20'
-      );
+      // Get token from localStorage or use empty string (backend will check session)
+      const token = localStorage.getItem('gmail_access_token') || '';
+      const url = token 
+        ? `http://localhost:8000/fetch-emails-stream?max_results=10&token=${encodeURIComponent(token)}`
+        : 'http://localhost:8000/fetch-emails-stream?max_results=10';
+      
+      const eventSource = new EventSource(url);
 
       eventSource.onmessage = (event) => {
         const data = JSON.parse(event.data);
 
         if (data.type === 'init') {
-          console.log('Starting email scan...');
+          expectedTotal = data.total_to_fetch || 10;
+          console.log('Starting email scan...', `Expecting ${expectedTotal} emails`);
           setScanProgress(5);
         } else if (data.type === 'email') {
-          setAllEmails((prev) => [...prev, data.email]);
-          setScanProgress(Math.min(5 + (data.count * 4), 95));
+          const newEmail = data.email;
+          collectedEmails.push(newEmail);  // Add to local collection
+          setAllEmails((prev) => [...prev, newEmail]);
+          // Calculate progress proportionally: 5% start + 90% for data collection
+          const progress = Math.min(5 + ((data.count / expectedTotal) * 90), 95);
+          setScanProgress(progress);
         } else if (data.type === 'complete') {
           setTiming({
             fetch_time_ms: data.fetch_time_ms,
@@ -98,6 +135,12 @@ export default function HighRiskInbox() {
           setScanProgress(100);
           setLoading(false);
           eventSource.close();
+          
+          // Cache all collected emails in parent component
+          if (setCachedEmails && collectedEmails.length > 0) {
+            setCachedEmails(collectedEmails);
+            console.log('✓ Emails cached in parent:', collectedEmails.length);
+          }
         }
       };
 
@@ -117,16 +160,23 @@ export default function HighRiskInbox() {
     }
   };
 
-  const highRiskCount = allEmails.filter(e => e.risk_score === 'HIGH').length;
-  const mediumRiskCount = allEmails.filter(e => e.risk_score === 'MEDIUM').length;
-  const lowRiskCount = allEmails.filter(e => e.risk_score === 'LOW').length;
+  // Helper function to get risk category from final_score (NEW: using combined score)
+  const getRiskCategory = (finalScore: number): 'HIGH' | 'MEDIUM' | 'LOW' => {
+    if (finalScore >= 0.75) return 'HIGH';     // HIGH: 75%+
+    if (finalScore >= 0.60) return 'MEDIUM';   // MEDIUM: 60-75%
+    return 'LOW';                               // LOW: < 60%
+  };
 
-  // Filter emails based on selected risk level
+  const highRiskCount = allEmails.filter(e => getRiskCategory(e.final_score) === 'HIGH').length;
+  const mediumRiskCount = allEmails.filter(e => getRiskCategory(e.final_score) === 'MEDIUM').length;
+  const lowRiskCount = allEmails.filter(e => getRiskCategory(e.final_score) === 'LOW').length;
+
+  // Filter emails based on selected risk level (using final_score, not old risk_score)
   const filteredEmails = selectedRiskFilter === 'NONE' 
     ? allEmails 
     : selectedRiskFilter === 'LOW'
-    ? allEmails.filter(e => e.risk_score === 'LOW')
-    : allEmails.filter(e => e.risk_score === 'HIGH' || e.risk_score === 'MEDIUM');
+    ? allEmails.filter(e => getRiskCategory(e.final_score) === 'LOW')
+    : allEmails.filter(e => getRiskCategory(e.final_score) === 'HIGH' || getRiskCategory(e.final_score) === 'MEDIUM');
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex flex-col">
@@ -308,194 +358,78 @@ export default function HighRiskInbox() {
         ) : (
           <div className="space-y-3">
             <div className="text-slate-300 text-sm font-semibold mb-4">
-              Showing {filteredEmails.length} email{filteredEmails.length !== 1 ? 's' : ''} {selectedRiskFilter === 'LOW' && 'with safe emails'} {selectedRiskFilter === 'HIGH_MEDIUM' && 'with risky emails'}
+              Showing {filteredEmails.length} email{filteredEmails.length !== 1 ? 's' : ''} {selectedRiskFilter === 'LOW' && '(Safe)'} {selectedRiskFilter === 'HIGH_MEDIUM' && '(Risky)'}
             </div>
-            {filteredEmails.map((email, idx) => (
-              <div
-                key={`${email.id}-${idx}`}
-                onClick={() => setExpandedId(expandedId === email.id ? null : email.id)}
-                className={`border rounded-lg backdrop-blur-sm transition-all duration-300 transform hover:scale-102 cursor-pointer animate-in fade-in slide-in-from-left ${
-                  email.risk_score === 'HIGH'
-                    ? 'bg-gradient-to-br from-red-900/30 to-red-800/20 border-red-500/40 hover:border-red-400 hover:from-red-900/50 hover:to-red-800/40 hover:shadow-lg hover:shadow-red-500/20'
-                    : email.risk_score === 'MEDIUM'
-                    ? 'bg-gradient-to-br from-yellow-900/30 to-yellow-800/20 border-yellow-500/40 hover:border-yellow-400 hover:from-yellow-900/50 hover:to-yellow-800/40 hover:shadow-lg hover:shadow-yellow-500/20'
-                    : 'bg-gradient-to-br from-green-900/30 to-green-800/20 border-green-500/40 hover:border-green-400 hover:from-green-900/50 hover:to-green-800/40 hover:shadow-lg hover:shadow-green-500/20'
-                } shadow-md hover:shadow-2xl`}
-                style={{
-                  animation: `slideInUp 0.4s ease-out ${idx * 0.05}s both`
-                }}
-              >
-                {/* Card Header with Subject and Badge */}
-                <div className="px-6 py-4 border-b border-slate-600/50">
-                  <div className="flex items-start justify-between gap-4 mb-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start gap-3">
-                        {email.risk_score === 'HIGH' && (
-                          <div className="animate-pulse flex-shrink-0 mt-1">
-                            <ExclamationTriangleSVG />
-                          </div>
-                        )}
-                        <h3 className="font-bold text-lg text-white break-words hover:text-blue-300 transition-colors">
-                          {email.subject}
-                        </h3>
-                      </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredEmails.map((email, idx) => (
+                <div
+                  key={`${email.id}-${idx}`}
+                  onClick={() => onEmailSelect?.(email)}
+                  className={`border rounded-xl backdrop-blur-sm transition-all duration-300 transform hover:scale-105 cursor-pointer animate-in fade-in slide-in-from-left p-6 ${
+                    getRiskCategory(email.final_score) === 'HIGH'
+                      ? 'bg-gradient-to-br from-red-900/30 to-red-800/20 border-red-500/40 hover:border-red-400 hover:from-red-900/50 hover:to-red-800/40 hover:shadow-lg hover:shadow-red-500/30'
+                      : getRiskCategory(email.final_score) === 'MEDIUM'
+                      ? 'bg-gradient-to-br from-yellow-900/30 to-yellow-800/20 border-yellow-500/40 hover:border-yellow-400 hover:from-yellow-900/50 hover:to-yellow-800/40 hover:shadow-lg hover:shadow-yellow-500/30'
+                      : 'bg-gradient-to-br from-green-900/30 to-green-800/20 border-green-500/40 hover:border-green-400 hover:from-green-900/50 hover:to-green-800/40 hover:shadow-lg hover:shadow-green-500/30'
+                  } shadow-md hover:shadow-2xl`}
+                  style={{
+                    animation: `slideInUp 0.4s ease-out ${idx * 0.05}s both`
+                  }}
+                >
+                  {/* Risk Badge */}
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      {getRiskCategory(email.final_score) === 'HIGH' && <ExclamationTriangleSVG />}
+                      <h3 className="font-bold text-white break-words line-clamp-2 hover:text-blue-300 transition-colors">
+                        {email.subject}
+                      </h3>
                     </div>
                     <div className="flex-shrink-0">
-                      <RiskBadge risk={email.risk_score} />
+                      <RiskBadge risk={getRiskCategory(email.final_score)} />
                     </div>
                   </div>
-                  <p className="text-sm text-slate-400">
-                    <span className="font-semibold text-slate-300">From:</span> <span className="text-slate-300">{email.sender}</span>
-                  </p>
-                </div>
 
-                {/* Card Main Content - Quick Stats */}
-                <div className="px-6 py-4">
-                  <div className="grid grid-cols-3 gap-4 mb-4">
-                    {/* Risk Score */}
-                    <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
-                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Risk Score</p>
-                      <p className={`text-2xl font-bold ${
-                        email.risk_score === 'HIGH' ? 'text-red-400' :
-                        email.risk_score === 'MEDIUM' ? 'text-yellow-400' :
+                  {/* Sender */}
+                  <p className="text-xs text-slate-400 truncate mb-4">
+                    <span className="font-semibold text-slate-300">From:</span> {email.sender}
+                  </p>
+
+                  {/* Quick Info */}
+                  <div className="space-y-2 mb-4">
+                    <div className="bg-slate-800/50 rounded p-2 border border-slate-700/50">
+                      <p className="text-xs text-slate-400 font-semibold uppercase">Risk Score</p>
+                      <p className={`text-lg font-bold ${
+                        getRiskCategory(email.final_score) === 'HIGH' ? 'text-red-400' :
+                        getRiskCategory(email.final_score) === 'MEDIUM' ? 'text-yellow-400' :
                         'text-green-400'
                       }`}>
                         {(email.final_score * 100).toFixed(0)}%
                       </p>
                     </div>
-
-                    {/* Fetch Time */}
-                    <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
-                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Fetch Time</p>
-                      <p className="text-2xl font-bold text-emerald-400">{email.fetch_time_ms}ms</p>
-                    </div>
-
-                    {/* Analysis Time */}
-                    <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
-                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Analysis</p>
-                      <p className="text-2xl font-bold text-purple-400">{email.model_time_ms}ms</p>
-                    </div>
                   </div>
 
-                  {/* Expand Indicator */}
-                  <div className="text-center">
-                    <p className="text-xs text-slate-500 font-medium">
-                      {expandedId === email.id ? '▼ Hide Details' : '▶ Show Details'}
+                  {/* Suspicious Info */}
+                  {(email.highlight?.urls?.length || 0) > 0 && (
+                    <div className="mb-3 p-2 bg-red-900/30 border border-red-500/30 rounded text-xs">
+                      <p className="text-red-300 font-semibold">🔗 {email.highlight?.urls?.length} suspicious URL(s)</p>
+                    </div>
+                  )}
+                  
+                  {(email.highlight?.phrases?.length || 0) > 0 && (
+                    <div className="mb-3 p-2 bg-yellow-900/30 border border-yellow-500/30 rounded text-xs">
+                      <p className="text-yellow-300 font-semibold">⚠️ {email.highlight?.phrases?.length} suspicious phrase(s)</p>
+                    </div>
+                  )}
+
+                  {/* Click to View */}
+                  <div className="text-center pt-3 border-t border-slate-600/30">
+                    <p className="text-xs text-blue-300 font-medium hover:text-blue-200">
+                      Click to view details →
                     </p>
                   </div>
                 </div>
-
-                {/* Expanded Content */}
-                {expandedId === email.id && (
-                  <div className="px-6 py-4 border-t border-slate-600/50 space-y-4 animate-in fade-in">
-                    {/* Email Body */}
-                    <div>
-                      <p className="font-semibold text-blue-300 mb-2 text-sm">📧 Email Body</p>
-                      <div className="bg-slate-900/70 p-4 rounded-lg border border-slate-700/50 max-h-48 overflow-y-auto">
-                        <p className="text-sm text-slate-300 leading-relaxed">
-                          {email.body?.substring(0, 500) || 'No body content'}
-                          {email.body && email.body.length > 500 ? '...' : ''}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Suspicious URLs with REAL, ROBUST multi-layer analysis */}
-                    {email.highlight?.urls && email.highlight.urls.length > 0 && (
-                      <div>
-                        <p className="font-semibold text-red-300 mb-3 text-sm">🔗 Suspicious URLs ({email.highlight.urls.length})</p>
-                        <div className="space-y-4">
-                          {email.highlight.urls.map((url, i) => {
-                            return (
-                              <div key={i} className="bg-red-900/40 border border-red-500/60 rounded-lg p-4 space-y-3">
-                                {/* URL Full Display */}
-                                <div className="mb-2">
-                                  <p className="text-xs text-slate-400 font-semibold mb-1">FULL URL</p>
-                                  <p className="text-xs text-red-300 break-all font-mono bg-slate-900/50 p-2 rounded">
-                                    {url}
-                                  </p>
-                                </div>
-
-                                {/* Quick Overview */}
-                                <div className="grid grid-cols-2 gap-2">
-                                  <div className="bg-slate-900/70 rounded p-2 border border-slate-700">
-                                    <p className="text-xs text-slate-400">Protocol</p>
-                                    <p className="text-sm font-mono text-red-300">{url.match(/^[a-z]+(?=:)/)?.[0] || 'http'}</p>
-                                  </div>
-                                  <div className="bg-slate-900/70 rounded p-2 border border-slate-700">
-                                    <p className="text-xs text-slate-400">Domain</p>
-                                    <p className="text-sm font-mono text-red-300 truncate">{url.split('/')[2] || 'N/A'}</p>
-                                  </div>
-                                </div>
-
-                                {/* Multi-Layer Analysis Results */}
-                                <div className="space-y-2">
-                                  <p className="text-xs text-orange-400 font-bold uppercase">🔴 Multi-Layer Analysis Report</p>
-                                  
-                                  {/* Analysis Indicators */}
-                                  <div className="space-y-1">
-                                    <div className="bg-orange-900/50 border-l-4 border-orange-500 p-2 rounded">
-                                      <p className="text-xs font-semibold text-orange-300">📊 URL Structure Analysis</p>
-                                      <ul className="text-xs text-orange-200 mt-1 space-y-1 ml-2">
-                                        <li>• No HTTPS encryption - credentials can be intercepted</li>
-                                        <li>• Generic domain structure - typical of phishing sites</li>
-                                        <li>• Lacks SSL certificate validation</li>
-                                      </ul>
-                                    </div>
-
-                                    <div className="bg-yellow-900/50 border-l-4 border-yellow-500 p-2 rounded">
-                                      <p className="text-xs font-semibold text-yellow-300">📅 Domain Age Check</p>
-                                      <p className="text-xs text-yellow-200 mt-1">Domain registration date unknown - possible new registration used for phishing</p>
-                                    </div>
-
-                                    <div className="bg-blue-900/50 border-l-4 border-blue-500 p-2 rounded">
-                                      <p className="text-xs font-semibold text-blue-300">🌐 DNS & Infrastructure</p>
-                                      <p className="text-xs text-blue-200 mt-1">DNS records not available or suspicious - infrastructure not properly configured</p>
-                                    </div>
-
-                                    <div className="bg-purple-900/50 border-l-4 border-purple-500 p-2 rounded">
-                                      <p className="text-xs font-semibold text-purple-300">🔒 SSL Certificate</p>
-                                      <p className="text-xs text-purple-200 mt-1">Missing or self-signed certificate - identity not verified by certification authority</p>
-                                    </div>
-
-                                    <div className="bg-pink-900/50 border-l-4 border-pink-500 p-2 rounded">
-                                      <p className="text-xs font-semibold text-pink-300">📄 Content Analysis</p>
-                                      <p className="text-xs text-pink-200 mt-1">Page likely contains login forms and credential harvest tactics</p>
-                                    </div>
-                                  </div>
-
-                                  {/* Overall Risk Score */}
-                                  <div className="bg-red-900/60 border border-red-500 rounded p-2 mt-2">
-                                    <p className="text-xs font-bold text-red-200">🚨 OVERALL RISK: CRITICAL</p>
-                                    <p className="text-xs text-red-300 mt-1">Risk Score: 65-75/100 - DO NOT CLICK OR ENTER CREDENTIALS</p>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Suspicious Phrases */}
-                    {email.highlight?.phrases && email.highlight.phrases.length > 0 && (
-                      <div>
-                        <p className="font-semibold text-orange-300 mb-2 text-sm">⚠️ Suspicious Phrases ({email.highlight.phrases.length})</p>
-                        <div className="flex flex-wrap gap-2">
-                          {email.highlight.phrases.map((phrase, i) => (
-                            <span
-                              key={i}
-                              className="bg-orange-900/40 text-orange-300 px-3 py-1 rounded text-xs font-medium border border-orange-500/40 hover:bg-orange-900/60 transition-all"
-                            >
-                              {phrase}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
       </>

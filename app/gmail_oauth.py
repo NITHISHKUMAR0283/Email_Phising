@@ -3,6 +3,8 @@ import base64
 import re
 import time
 import json
+import html
+from html.parser import HTMLParser
 from fastapi import APIRouter, Request, Response
 from fastapi import Cookie
 from fastapi.responses import RedirectResponse, JSONResponse, StreamingResponse
@@ -10,7 +12,11 @@ from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 from .phishing_engine import phishing_engine
+from .grok_analysis import generate_grok_analysis
+from .heuristics import analyze_heuristics
+from .url_grok_analyzer import analyze_urls_with_grok
 from typing import Dict, Any, List
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 CLIENT_ID = "685356081512-k89ps7iino08oqlc2bipvt73eqar3apo.apps.googleusercontent.com"
 CLIENT_SECRET = "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"
@@ -54,15 +60,25 @@ def oauth2callback(request: Request, code_verifier: str = Cookie(None)):
     credentials = flow.credentials
     user_tokens["access_token"] = credentials.token
     # Clear the code_verifier cookie
-    response = RedirectResponse("http://localhost:5173/")
+    # Redirect with token as query param so frontend can save to localStorage
+    response = RedirectResponse(f"http://localhost:5173/?token={credentials.token}")
     response.delete_cookie("code_verifier")
     return response
 
 @router.get("/check-auth")
-def check_auth():
-    """Check if user is authenticated by verifying access token exists."""
-    access_token = user_tokens.get("access_token")
-    if access_token:
+def check_auth(request: Request):
+    """Check if user is authenticated. Accept token from header or query param."""
+    # Try to get token from Authorization header first
+    auth_header = request.headers.get("Authorization", "")
+    token = None
+    
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]  # Remove "Bearer " prefix
+    else:
+        # Fallback to in-memory tokens (for session persistence)
+        token = user_tokens.get("access_token")
+    
+    if token:
         return JSONResponse({"authenticated": True}, status_code=200)
     else:
         return JSONResponse({"authenticated": False}, status_code=401)
@@ -75,29 +91,86 @@ def logout(response: Response):
     return response
 
 def extract_email_body(payload: Dict[str, Any]) -> str:
-    """Extract email body from payload."""
+    """Extract email body from payload - handles plain text, HTML, and nested parts."""
     body = ""
-    if "parts" in payload:
-        for part in payload["parts"]:
-            if part["mimeType"] == "text/plain":
-                data = part["body"].get("data", "")
+    
+    def clean_html(html_text: str) -> str:
+        """Clean HTML content to readable text."""
+        # Remove style and script tags completely
+        html_text = re.sub(r'<style[^>]*>.*?</style>', '', html_text, flags=re.DOTALL | re.IGNORECASE)
+        html_text = re.sub(r'<script[^>]*>.*?</script>', '', html_text, flags=re.DOTALL | re.IGNORECASE)
+        
+        # Decode HTML entities
+        html_text = html.unescape(html_text)
+        
+        # Remove all remaining HTML tags
+        html_text = re.sub(r'<[^>]+>', '\n', html_text)
+        
+        # Replace multiple whitespace with single space/newline
+        html_text = re.sub(r'\n\s*\n', '\n', html_text)  # Remove blank lines
+        html_text = re.sub(r' +', ' ', html_text)  # Remove multiple spaces
+        
+        # Clean up common artifacts
+        html_text = re.sub(r'&nbsp;', ' ', html_text)
+        html_text = re.sub(r'[\t\r]+', '', html_text)
+        
+        # Remove leading/trailing whitespace each line
+        lines = [line.strip() for line in html_text.split('\n') if line.strip()]
+        return '\n'.join(lines)
+    
+    def extract_from_parts(parts):
+        """Recursively extract body from email parts."""
+        for part in parts:
+            mime_type = part.get("mimeType", "")
+            
+            # Try to extract data from current part
+            if mime_type == "text/plain":
+                data = part.get("body", {}).get("data", "")
                 if data:
-                    body = base64.urlsafe_b64decode(data + '==').decode("utf-8", errors="ignore")
-                    break
+                    return base64.urlsafe_b64decode(data + '==').decode("utf-8", errors="ignore")
+            
+            elif mime_type == "text/html":
+                data = part.get("body", {}).get("data", "")
+                if data:
+                    html_text = base64.urlsafe_b64decode(data + '==').decode("utf-8", errors="ignore")
+                    return clean_html(html_text)
+            
+            # If part has nested parts, recurse
+            if "parts" in part:
+                result = extract_from_parts(part["parts"])
+                if result:
+                    return result
+        
+        return None
+    
+    # Handle multipart emails
+    if "parts" in payload:
+        body = extract_from_parts(payload["parts"]) or ""
     else:
-        data = payload["body"].get("data", "")
+        # Single part email
+        data = payload.get("body", {}).get("data", "")
         if data:
-            body = base64.urlsafe_b64decode(data + '==').decode("utf-8", errors="ignore")
-    return body
+            text = base64.urlsafe_b64decode(data + '==').decode("utf-8", errors="ignore")
+            # Check if it looks like HTML
+            if '<' in text and '>' in text:
+                body = clean_html(text)
+            else:
+                body = text
+    
+    return body or "(No email body content available)"
 
-def process_email_message(service, msg: Dict[str, Any]) -> Dict[str, Any] | None:
-    """
-    Process a single email message.
+def process_email_message(access_token: str, msg: Dict[str, Any]) -> Dict[str, Any] | None:
+    """Process a single email message (heuristics + ML + Groq AI).
+    Creates a fresh Gmail service per thread for thread-safety.
     Returns result with timing info, or None if parse fails.
     """
     fetch_start = time.time()
     
     try:
+        # Create a fresh service for this thread (thread-safe)
+        creds = Credentials(token=access_token)
+        service = build("gmail", "v1", credentials=creds)
+        
         msg_data = service.users().messages().get(userId="me", id=msg["id"], format="full").execute()
         fetch_time = (time.time() - fetch_start) * 1000
         
@@ -109,10 +182,14 @@ def process_email_message(service, msg: Dict[str, Any]) -> Dict[str, Any] | None
         sender = headers.get("From", "")
         body = extract_email_body(msg_data.get("payload", {}))
         
-        # Extract URLs from body
-        urls = re.findall(r'https?://\S+', body) if body else []
+        # Extract URLs from body (http, https, and bare domains)
+        urls_with_scheme = re.findall(r'https?://\S+', body) if body else []
         
-        # Run phishing_engine with timing
+        # Also find bare domains that were missed (optional: domain.com patterns)
+        # For now, only use explicitly stated URLs
+        urls = urls_with_scheme
+        
+        # Run phishing_engine (heuristics + ML) with timing
         model_start = time.time()
         email_obj = {
             "subject": subject,
@@ -123,21 +200,55 @@ def process_email_message(service, msg: Dict[str, Any]) -> Dict[str, Any] | None
         result = phishing_engine(email_obj)
         model_time = (time.time() - model_start) * 1000
         
+        # 🎯 DETACHED: URL Grok Analysis (code kept but not used in scoring yet)
+        # Will be re-enabled when logic is verified
+        url_analysis_start = time.time()
+        url_analysis = {}
+        if urls:
+            # TODO: Re-enable URL Grok analysis
+            pass
+            # url_analysis = analyze_urls_with_grok(urls)
+        url_analysis_time = (time.time() - url_analysis_start) * 1000
+        
+        # Run Groq AI analysis with timing
+        groq_start = time.time()
+        ai_analysis = generate_grok_analysis(
+            email_text=body,
+            subject=subject,
+            sender=sender,
+            urls=urls,
+            heuristics=result.get("components", {}),
+            risk_score=result.get("final_score", 0.5)
+        )
+        groq_time_ms = (time.time() - groq_start) * 1000
+        
+        # ⭐ COMBINE SCORES: 80% Grok, 20% Heuristics (Grok is more accurate)
+        heuristic_score = result.get("final_score", 0.5)
+        grok_score = ai_analysis.get("risk_score", 0.5)
+        
+        # Weighted: Grok is significantly more accurate than pattern-based heuristics
+        combined_final_score = (0.8 * grok_score) + (0.2 * heuristic_score)
+        
         return {
             "id": msg["id"],
             "subject": subject,
             "sender": sender,
-            "risk_score": result.get("risk_level"),
-            "final_score": result.get("final_score"),
+            "risk_score": result.get("risk_level"),  # Heuristic risk level (for reference)
+            "final_score": combined_final_score,  # ⭐ PRIMARY SCORE: 70% Grok + 30% Heuristics
+            "grok_score": grok_score,  # Email Grok AI score
+            "heuristic_score": heuristic_score,  # Heuristic score (for transparency)
             "components": result.get("components"),
             "reasons": result.get("reasons"),
             "highlight": result.get("highlight"),
             "body": body,
             "timestamp": msg_data.get("internalDate", ""),
             "fetch_time_ms": round(fetch_time, 2),
-            "model_time_ms": round(model_time, 2)
+            "model_time_ms": round(model_time, 2),
+            "groq_time_ms": round(groq_time_ms, 2),
+            "url_analysis_ms": round(url_analysis_time, 2),
+            "ai_analysis": ai_analysis,  # Groq AI analysis included
+            "url_analysis": url_analysis  # URL analysis (detached)
         }
-            
     except Exception as e:
         error_str = str(e)
         print(f"Error processing email {msg.get('id')}: {error_str[:80]}")
@@ -145,20 +256,31 @@ def process_email_message(service, msg: Dict[str, Any]) -> Dict[str, Any] | None
     return None
 
 @router.get("/fetch-all-emails")
-def fetch_all_emails(max_results: int = 20):
-    """Fetch emails with phishing analysis and timing information."""
+def fetch_all_emails(max_results: int = 10, token: str = None, folder: str = "INBOX"):
+    """Fetch emails with phishing analysis and timing information.
+    Accepts token from query param (for frontend persistence) or falls back to session tokens.
+    
+    Args:
+        max_results: Number of emails to fetch (default 10)
+        token: Gmail access token
+        folder: Email folder/label - "INBOX", "SPAM", "SENT", "DRAFT" (default "INBOX")
+    """
     total_start = time.time()
     
-    access_token = user_tokens.get("access_token")
+    # Use provided token or fall back to in-memory token
+    access_token = token or user_tokens.get("access_token")
     if not access_token:
         return JSONResponse({"error": "Not authenticated"}, status_code=401)
     
     creds = Credentials(token=access_token)
     service = build("gmail", "v1", credentials=creds)
     
+    # Build query to fetch from specific folder/label
+    query_label = f"label:{folder}" if folder else None
+    
     # Fetch message list
     fetch_list_start = time.time()
-    messages = service.users().messages().list(userId="me", maxResults=max_results).execute().get("messages", [])
+    messages = service.users().messages().list(userId="me", maxResults=max_results, q=query_label).execute().get("messages", [])
     fetch_list_time_ms = (time.time() - fetch_list_start) * 1000
     
     if not messages:
@@ -180,7 +302,7 @@ def fetch_all_emails(max_results: int = 20):
     
     # Process emails sequentially
     for msg in messages:
-        result = process_email_message(service, msg)
+        result = process_email_message(access_token, msg)
         if result:
             all_emails.append(result)
             total_fetch_time_ms += result.get("fetch_time_ms", 0)
@@ -207,8 +329,10 @@ def fetch_all_emails(max_results: int = 20):
     }
 
 @router.get("/fetch-high-risk-emails")
-def fetch_high_risk_emails():
-    access_token = user_tokens.get("access_token")
+def fetch_high_risk_emails(token: str = None):
+    """Fetch high-risk emails. Accepts token from query param or falls back to session tokens."""
+    # Use provided token or fall back to in-memory token
+    access_token = token or user_tokens.get("access_token")
     if not access_token:
         return JSONResponse({"error": "Not authenticated"}, status_code=401)
     
@@ -225,9 +349,7 @@ def fetch_high_risk_emails():
     
     # Process emails sequentially
     for msg in messages:
-        result = process_email_message(service, msg)
-        if result and result.get("risk_score") == "HIGH":
-            high_risk_emails.append(result)
+        result = process_email_message(access_token, msg)
     
     # Sort by final_score (highest risk first)
     high_risk_emails.sort(key=lambda x: float(x.get("final_score", 0)), reverse=True)
@@ -235,44 +357,62 @@ def fetch_high_risk_emails():
     return high_risk_emails
 
 @router.get("/fetch-emails-stream")
-def fetch_emails_stream(max_results: int = 20):
-    """Stream emails one by one to frontend as they are processed."""
-    access_token = user_tokens.get("access_token")
+def fetch_emails_stream(max_results: int = 10, token: str = None, folder: str = "INBOX"):
+    """Stream emails to frontend with concurrent Groq AI analysis (parallel processing).
+    Accepts token from query param (for frontend persistence) or falls back to session tokens.
+    
+    Args:
+        max_results: Number of emails to fetch (default 10)
+        token: Gmail access token
+        folder: Email folder/label - "INBOX", "SPAM", "SENT", "DRAFT" (default "INBOX")
+    """
+    # Use provided token or fall back to in-memory token
+    access_token = token or user_tokens.get("access_token")
     if not access_token:
         return JSONResponse({"error": "Not authenticated"}, status_code=401)
     
     creds = Credentials(token=access_token)
     service = build("gmail", "v1", credentials=creds)
     
+    # Build query to fetch from specific folder/label
+    query_label = f"label:{folder}" if folder else None
+    
     # Fetch message list
     fetch_list_start = time.time()
-    messages = service.users().messages().list(userId="me", maxResults=max_results).execute().get("messages", [])
+    messages = service.users().messages().list(userId="me", maxResults=max_results, q=query_label).execute().get("messages", [])
     fetch_list_time_ms = (time.time() - fetch_list_start) * 1000
     
     def generate():
-        """Generator function to stream emails one by one."""
+        """Generator function to stream emails with parallel Groq analysis."""
         total_fetch_time_ms = fetch_list_time_ms
         total_model_time_ms = 0
+        total_groq_time_ms = 0
         all_emails = []
         
-        # Send initial metadata
-        yield f"data: {json.dumps({'type': 'init', 'list_fetch_time_ms': fetch_list_time_ms})}\n\n"
+        # Send initial metadata with total emails expected
+        yield f"data: {json.dumps({'type': 'init', 'list_fetch_time_ms': fetch_list_time_ms, 'total_to_fetch': len(messages)})}\n\n"
         
-        # Process and send each email as it's done
-        for idx, msg in enumerate(messages):
-            result = process_email_message(service, msg)
-            if result:
-                all_emails.append(result)
-                total_fetch_time_ms += result.get("fetch_time_ms", 0)
-                total_model_time_ms += result.get("model_time_ms", 0)
-                
-                # Send this email to frontend
-                yield f"data: {json.dumps({'type': 'email', 'email': result, 'count': len(all_emails)})}\n\n"
+        # Process emails in parallel using ThreadPoolExecutor (max 2 concurrent for stability)
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            # Submit all email processing tasks - pass access_token instead of shared service
+            future_to_msg = {executor.submit(process_email_message, access_token, msg): msg for msg in messages}
+            
+            # Process completed tasks as they finish
+            for future in as_completed(future_to_msg):
+                result = future.result()
+                if result:
+                    all_emails.append(result)
+                    total_fetch_time_ms += result.get("fetch_time_ms", 0)
+                    total_model_time_ms += result.get("model_time_ms", 0)
+                    total_groq_time_ms += result.get("groq_time_ms", 0)
+                    
+                    # Stream this email to frontend immediately
+                    yield f"data: {json.dumps({'type': 'email', 'email': result, 'count': len(all_emails)})}\n\n"
         
         # Sort by final_score before sending final summary
         all_emails.sort(key=lambda x: float(x.get("final_score", 0)), reverse=True)
         
         # Send final summary
-        yield f"data: {json.dumps({'type': 'complete', 'total_emails': len(all_emails), 'fetch_time_ms': round(total_fetch_time_ms, 2), 'total_model_time_ms': round(total_model_time_ms, 2)})}\n\n"
+        yield f"data: {json.dumps({'type': 'complete', 'total_emails': len(all_emails), 'fetch_time_ms': round(total_fetch_time_ms, 2), 'total_model_time_ms': round(total_model_time_ms, 2), 'total_groq_time_ms': round(total_groq_time_ms, 2)})}\n\n"
     
     return StreamingResponse(generate(), media_type="text/event-stream")
