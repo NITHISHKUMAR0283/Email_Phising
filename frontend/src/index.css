@@ -2,16 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Global dark theme */
+/* Dark Cyber-Security Theme - Black & Red */
 @layer base {
   :root {
-    --color-bg-primary: #0f1419;
-    --color-bg-secondary: #1a1f2e;
-    --color-bg-tertiary: #242d3d;
+    /* Dark backgrounds */
+    --color-bg-primary: #000000;
+    --color-bg-secondary: #0a0a0a;
+    --color-bg-tertiary: #1a1a1a;
+    --color-bg-dark-gray: #2d2d2d;
+    
+    /* Text colors */
     --color-text-primary: #ffffff;
-    --color-text-secondary: #d1d5db;
-    --color-text-tertiary: #9ca3af;
-    --color-border: #374151;
+    --color-text-secondary: #e0e0e0;
+    --color-text-tertiary: #a0a0a0;
+    
+    /* Red accent colors */
+    --color-red-primary: #dc2626;
+    --color-red-secondary: #ef4444;
+    --color-red-tertiary: #7f1d1d;
+    
+    /* Borders */
+    --color-border: #333333;
+    --color-border-red: #dc2626;
+    
+    /* Status colors */
     --color-risk-critical: #dc2626;
     --color-risk-high: #ea580c;
     --color-risk-medium: #f59e0b;
@@ -20,8 +34,8 @@
   }
 
   body {
-    @apply bg-slate-950 text-gray-100;
-    background-color: var(--color-bg-primary);
+    @apply bg-black text-gray-100;
+    background: linear-gradient(135deg, #000000 0%, #0a0a0a 50%, #05050a 100%);
     color: var(--color-text-primary);
   }
 
@@ -30,93 +44,182 @@
   }
 }
 
-/* Dark theme for all components */
+/* Dark Cyber Security Theme Components */
 @layer components {
+  /* Backgrounds */
   .dark-bg-primary {
-    @apply bg-slate-950;
+    @apply bg-black;
   }
 
   .dark-bg-secondary {
-    @apply bg-slate-900;
+    @apply bg-slate-950;
   }
 
   .dark-bg-tertiary {
-    @apply bg-slate-800;
+    @apply bg-slate-900;
   }
 
+  .dark-bg-card {
+    @apply bg-slate-950/80 backdrop-blur-sm;
+  }
+
+  /* Text colors */
   .dark-text-primary {
-    @apply text-gray-100;
+    @apply text-white;
   }
 
   .dark-text-secondary {
     @apply text-gray-300;
   }
 
+  .dark-text-tertiary {
+    @apply text-gray-500;
+  }
+
+  /* Red accent text */
+  .red-text-primary {
+    @apply text-red-500;
+  }
+
+  .red-text-glow {
+    color: #dc2626;
+    text-shadow: 0 0 10px rgba(220, 38, 38, 0.6);
+  }
+
+  /* Borders */
   .dark-border {
     @apply border-gray-700;
   }
 
+  .red-border {
+    @apply border-red-600;
+  }
+
+  .red-border-glow {
+    @apply border-2 border-red-600;
+    box-shadow: 0 0 15px rgba(220, 38, 38, 0.4);
+  }
+
+  /* Risk badges */
   .risk-badge-critical {
-    @apply bg-red-900/40 border-red-600 text-red-200;
+    @apply bg-red-900/40 border border-red-600 text-red-200;
   }
 
   .risk-badge-high {
-    @apply bg-orange-900/40 border-orange-600 text-orange-200;
+    @apply bg-orange-900/40 border border-orange-600 text-orange-200;
   }
 
   .risk-badge-medium {
-    @apply bg-yellow-900/40 border-yellow-600 text-yellow-200;
+    @apply bg-yellow-900/40 border border-yellow-600 text-yellow-200;
   }
 
   .risk-badge-low {
-    @apply bg-green-900/40 border-green-600 text-green-200;
+    @apply bg-green-900/40 border border-green-600 text-green-200;
   }
 
   .risk-badge-safe {
-    @apply bg-emerald-900/40 border-emerald-600 text-emerald-200;
+    @apply bg-emerald-900/40 border border-emerald-600 text-emerald-200;
   }
 
+  /* Cards */
   .card-dark {
-    @apply bg-slate-800/60 border border-gray-700 rounded-lg backdrop-blur-sm;
+    @apply bg-slate-900/60 border border-gray-700 rounded-lg backdrop-blur-sm;
+  }
+
+  .card-dark-red {
+    @apply bg-slate-950/80 border border-red-600/50 rounded-lg backdrop-blur-sm;
+    box-shadow: 0 0 20px rgba(220, 38, 38, 0.2);
   }
 
   .card-dark-hover {
-    @apply hover:bg-slate-700/60 hover:border-gray-600 transition-all duration-200;
+    @apply hover:bg-slate-800/60 hover:border-gray-600 transition-all duration-200;
   }
 
+  /* Buttons */
   .button-primary {
-    @apply px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-lg;
+    @apply px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-all duration-300 shadow-lg border border-red-500/50;
+    box-shadow: 0 0 20px rgba(220, 38, 38, 0.4);
+  }
+
+  .button-primary:hover {
+    box-shadow: 0 0 30px rgba(220, 38, 38, 0.6);
   }
 
   .button-secondary {
     @apply px-6 py-3 bg-slate-700 text-gray-100 font-semibold rounded-lg hover:bg-slate-600 transition-all duration-300 border border-gray-600;
   }
 
-  .input-dark {
-    @apply w-full bg-slate-800 border border-gray-700 rounded-lg px-4 py-3 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors;
+  .button-ghost-red {
+    @apply px-6 py-3 text-red-500 font-semibold rounded-lg hover:bg-red-600/10 transition-all duration-300 border border-red-600/50;
   }
 
+  /* Inputs */
+  .input-dark {
+    @apply w-full bg-slate-900 border border-gray-700 rounded-lg px-4 py-3 text-gray-100 placeholder-gray-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-colors;
+  }
+
+  /* Section titles */
   .section-title {
     @apply text-2xl font-bold text-white mb-4;
   }
+
+  .section-title-red {
+    @apply text-2xl font-bold text-white mb-4;
+    border-bottom: 2px solid #dc2626;
+    padding-bottom: 0.5rem;
+    display: inline-block;
+  }
+
+  /* Speedometer and gauges */
+  .speedometer-card {
+    @apply bg-slate-950/80 border-2 border-red-600 rounded-lg p-6;
+    box-shadow: 0 0 30px rgba(220, 38, 38, 0.3);
+  }
+
+  .speed-needle {
+    stroke: #dc2626;
+    filter: drop-shadow(0 0 8px rgba(220, 38, 38, 0.8));
+  }
+
+  /* Glow effects */
+  .glow-red {
+    box-shadow: 0 0 20px rgba(220, 38, 38, 0.5);
+  }
+
+  .glow-red-lg {
+    box-shadow: 0 0 40px rgba(220, 38, 38, 0.6);
+  }
+
+  .pulse-red {
+    animation: pulseRed 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes pulseRed {
+    0%, 100% {
+      box-shadow: 0 0 20px rgba(220, 38, 38, 0.3);
+    }
+    50% {
+      box-shadow: 0 0 40px rgba(220, 38, 38, 0.6);
+    }
+  }
 }
 
-/* Scrollbar styling */
+/* Scrollbar styling - Dark theme */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--color-bg-secondary);
+  background: var(--color-bg-tertiary);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-border);
+  background: var(--color-border-red);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-tertiary);
+  background: var(--color-red-secondary);
 }
 

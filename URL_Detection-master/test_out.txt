@@ -1,0 +1,13 @@
+PASS|https://google.com|expected=SAFE|got=SAFE|score=0.0|brand=google
+PASS|https://paypal.com|expected=SAFE|got=SAFE|score=0.0|brand=paypal
+PASS|https://www.amazon.co.uk/products|expected=SAFE|got=SAFE|score=0.0|brand=amazon
+PASS|http://paypa1.com/login|expected=PHISHING|got=PHISHING|score=1.0|brand=paypal
+PASS|https://login.apple.com.secure-check.xyz|expected=PHISHING|got=PHISHING|score=1.0|brand=apple
+PASS|https://secure-google-login.verify-account-auth.com|expected=PHISHING|got=PHISHING|score=1.0|brand=google
+PASS|https://gmail.account-security-check.info/login|expected=PHISHING|got=PHISHING|score=1.0|brand=gmail
+PASS|https://google-mail-authentication.support/update|expected=PHISHING|got=PHISHING|score=1.0|brand=google
+PASS|http://192.168.1.1/admin|expected=SUSPICIOUS|got=SUSPICIOUS|score=0.72|brand=None
+PASS|https://xk2j9qp.tk/verify|expected=PHISHING|got=PHISHING|score=1.0|brand=None
+PASS|https://bit.ly/3xK9mQ|expected=POTENTIALLY SUSPICIOUS|got=POTENTIALLY SUSPICIOUS|score=0.22|brand=None
+PASS|https://microsoft-security.online/verify|expected=PHISHING|got=PHISHING|score=1.0|brand=microsoft
+TOTAL:12/12
