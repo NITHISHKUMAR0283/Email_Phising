@@ -9,7 +9,7 @@ from .model import load_model, predict_phishing
 from .heuristics import analyze_heuristics
 from .utils import combine_signals, extract_highlighted_tokens
 from .quiz import generate_quiz
-from .phishing_engine import load_all_models, phishing_engine
+from .phishing_engine import load_all_models
 from .grok_analysis import generate_grok_analysis
 from datetime import datetime
 
@@ -55,45 +55,24 @@ class AnalyzeEmailRequest(BaseModel):
 
 @app.post("/analyze-email")
 def analyze_email(req: AnalyzeEmailRequest):
-    """Fast analysis without Grok - for batch email loading.
-    
-    Uses NEW phishing_engine with ensemble voting instead of old combine_signals.
-    """
+    """Fast analysis without Grok - for batch email loading."""
     global model, tokenizer
     
-    # NEW: Use phishing_engine for better detection
-    email_data = {
-        "subject": req.subject or "",
-        "body": req.email_text,
-        "sender": req.sender or "",
-        "urls": req.urls or [],
-        "headers": req.headers or {}
-    }
-    
-    engine_result = phishing_engine(email_data)
-    
-    # Map to old format for frontend compatibility
-    is_phishing = engine_result["risk_level"] == "HIGH"
-    if engine_result["risk_level"] == "HIGH":
-        risk_score = max(0.65, engine_result["final_score"])  # Ensure HIGH is clear
-    elif engine_result["risk_level"] == "MEDIUM":
-        risk_score = max(0.40, engine_result["final_score"])
-    else:
-        risk_score = min(0.35, engine_result["final_score"])
-    
-    # Extract highlighted phrases
-    highlighted = engine_result["highlight"]["phrases"] + engine_result["highlight"]["urls"]
-    
+    model_probs = predict_phishing(model, tokenizer, req.email_text)
+    phishing_prob = model_probs["phishing"]
+    heuristics = analyze_heuristics(req.email_text, req.sender, req.urls, req.headers)
+    result = combine_signals(phishing_prob, heuristics)
+    highlighted = extract_highlighted_tokens(req.email_text, heuristics)
     quiz = generate_quiz(req.email_text, highlighted)
     timestamp = datetime.utcnow().isoformat()
     
-    # Return enhanced results with new fields
+    # NO Grok here - only return basic analysis for fast batch loading
     output = {
-        "risk_score": engine_result["final_score"],
-        "risk_level": engine_result["risk_level"],
-        "is_phishing": is_phishing,
+        "risk_score": result["risk_score"],
+        "risk_level": result["risk_level"],
+        "is_phishing": result["is_phishing"],
         "highlighted_tokens": highlighted,
-        "heuristics": engine_result["reasons"],
+        "heuristics": heuristics["signals"],
         "quiz": quiz,
         "timestamp": timestamp,
         "subject": req.subject or "",
@@ -115,19 +94,13 @@ def analyze_email(req: AnalyzeEmailRequest):
 @app.post("/analyze-email-groq")
 def analyze_email_groq(req: AnalyzeEmailRequest):
     """Call Groq AI analysis ONLY when user views a specific email (on-demand).
-    Uses NEW phishing_engine for detection context."""
+    Returns the AI-generated risk score as the PRIMARY score."""
     global model, tokenizer
     
-    # NEW: Use phishing_engine for better context
-    email_data = {
-        "subject": req.subject or "",
-        "body": req.email_text,
-        "sender": req.sender or "",
-        "urls": req.urls or [],
-        "headers": req.headers or {}
-    }
-    
-    engine_result = phishing_engine(email_data)
+    # Quick heuristics analysis (reuse for context)
+    heuristics = analyze_heuristics(req.email_text, req.sender, req.urls, req.headers)
+    model_probs = predict_phishing(model, tokenizer, req.email_text)
+    result = combine_signals(model_probs["phishing"], heuristics)
     
     # Call Grok for AI explanation + AI-GENERATED RISK SCORE (on-demand)
     grok_analysis = generate_grok_analysis(
@@ -135,12 +108,12 @@ def analyze_email_groq(req: AnalyzeEmailRequest):
         subject=req.subject or "",
         sender=req.sender or "",
         urls=req.urls or [],
-        heuristics=engine_result["reasons"],  # Use engine reasons instead
-        risk_score=engine_result["final_score"]
+        heuristics=heuristics.get("signals", {}),
+        risk_score=result["risk_score"]
     )
     
-    # Use Groq's risk_score as PRIMARY score (override phishing_engine score)
-    groq_risk_score = grok_analysis.get("risk_score", engine_result["final_score"])
+    # Use Groq's risk_score as PRIMARY score (override heuristic score)
+    groq_risk_score = grok_analysis.get("risk_score", result["risk_score"])
     
     # Determine risk level from Groq score
     if groq_risk_score >= 0.75:

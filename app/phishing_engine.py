@@ -9,17 +9,8 @@ from typing import List, Dict, Any, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import torch
-from .whitelist import is_domain_whitelisted, is_legitimate_urgency, is_educational_content, get_whitelist_info
+from .whitelist import is_domain_whitelisted, is_legitimate_urgency, is_educational_content
 from .vt_analyzer import analyze_urls_virustotal, is_vt_available
-from .url_analyzer import analyze_urls as analyze_urls_engine
-from .config import (
-	URL_SUSPICIOUS_THRESHOLD, DOMAIN_SUSPICIOUS_THRESHOLD, 
-	INTENT_SUSPICIOUS_THRESHOLD, TEXT_SUSPICIOUS_THRESHOLD,
-	VT_SUSPICIOUS_THRESHOLD, HEADER_SUSPICIOUS_THRESHOLD,
-	MIN_SIGNALS_FOR_FLAG_UNKNOWN, MIN_SIGNALS_FOR_FLAG_WHITELISTED,
-	VT_OVERRIDE_THRESHOLD, UNKNOWN_SENDER_HIGH_RISK, UNKNOWN_SENDER_MEDIUM_RISK,
-	WHITELISTED_HIGH_RISK, WHITELISTED_MEDIUM_RISK
-)
 
 # Check for GPU availability
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -86,45 +77,157 @@ def load_all_models():
 	print("=== All models loaded successfully ===\n")
 
 # --- Step 2: URL Analysis (NEW: Using Advanced URL Detection Engine) ---
-def analyze_url(urls: List[str]) -> Tuple[float, List[str], List[str], List[Dict[str, Any]]]:
+def analyze_url(urls: List[str]) -> Tuple[float, List[str], List[str]]:
 	"""
 	Analyze URLs using the military-grade URL Detection engine.
 	Replaces BERT model with comprehensive multi-phase analysis.
 	
-	Returns max score, suspicious URLs, explanations, and detailed analysis.
+	Returns max score, suspicious URLs, and explanations.
 	"""
 	if not urls:
 		return 0.0, [], [], []
 	
-	# Use the advanced URL analyzer engine
-	analysis_result = analyze_urls_engine(urls)
+	load_url_models()  # Lazy load on first use
 	
-	max_score = analysis_result['max_risk_score']
-	suspicious_urls = []
+	scores = []
+	suspicious = []
 	explanations = []
 	detailed_analyses = analysis_result['details']  # Full analysis data for each URL
 	
-	# Process individual URL details
-	for url_detail in analysis_result['details']:
-		url = url_detail['url']
-		score = url_detail['risk_score']
-		risk_level = url_detail['risk_level']
-		threat_type = url_detail['threat_type']
-		findings = url_detail['findings']
-		
-		# Flag suspicious URLs
-		if url_detail['is_suspicious']:
-			suspicious_urls.append(url)
-		
-		# Create explanation from findings
-		if findings:
-			explanation = f"URL Analysis - {threat_type}: " + "; ".join(findings[:3])  # Top 3 findings
-		else:
-			explanation = f"URL Risk Level: {risk_level} (Score: {score:.2f})"
-		
-		explanations.append(explanation)
+	# Batch tokenize all URLs at once
+	inputs = url_tokenizer(urls, return_tensors="pt", truncation=True, max_length=64, padding=True)
+	inputs = {k: v.to(DEVICE) for k, v in inputs.items()}
 	
-	return max_score, suspicious_urls, explanations, detailed_analyses
+	with torch.no_grad():
+		outputs = url_model(**inputs)
+		probs = torch.nn.functional.softmax(outputs.logits, dim=-1)[:, 1].cpu().tolist()
+	
+	for url, prob in zip(urls, probs):
+		scores.append(prob)
+		if prob > 0.7:
+			suspicious.append(url)
+			explanations.append(f"Suspicious URL detected: {url}")
+		elif prob > 0.4:
+			explanations.append(f"Potentially risky URL: {url}")
+	
+	return max_score, suspicious_urls, explanations
+
+# --- Step 2.5: Header-Based Domain Analysis (Authentication Check) ---
+def parse_email_headers(raw_headers: str) -> Dict[str, str]:
+	"""
+	Parse raw email headers (multi-line format) into a dictionary.
+	Handles folded headers (wrapped lines starting with space/tab).
+	
+	Input:
+	```
+	From: Quincy Larson <quincy@freecodecamp.org>
+	Return-Path: <010f019d2d74f841@us-east-2.amazonses.com>
+	Received-SPF: pass (google.com: ...)
+	Authentication-Results: mx.google.com;
+	       dkim=pass header.i=@freecodecamp.org;
+	       dmarc=pass header.from=freecodecamp.org
+	```
+	
+	Output:
+	```
+	{
+		"From": "Quincy Larson <quincy@freecodecamp.org>",
+		"Return-Path": "<010f019d2d74f841@us-east-2.amazonses.com>",
+		"Received-SPF": "pass (google.com: ...)",
+		"Authentication-Results": "mx.google.com; dkim=pass header.i=@freecodecamp.org; dmarc=pass header.from=freecodecamp.org"
+	}
+	```
+	"""
+	headers_dict = {}
+	current_key = None
+	current_value = ""
+	
+	for line in raw_headers.split('\n'):
+		# Check if this is a continuation line (starts with space or tab)
+		if line and line[0] in (' ', '\t'):
+			# Append to current header value (continuation)
+			current_value += " " + line.strip()
+		else:
+			# Save previous header if exists
+			if current_key:
+				headers_dict[current_key] = current_value.strip()
+			
+			# Parse new header
+			if ':' in line:
+				current_key, current_value = line.split(':', 1)
+				current_key = current_key.strip()
+				current_value = current_value.strip()
+			else:
+				current_key = None
+				current_value = ""
+	
+	# Save last header
+	if current_key:
+		headers_dict[current_key] = current_value.strip()
+	
+	return headers_dict
+
+def analyze_email_headers(headers_dict: Dict[str, str]) -> Tuple[float, List[str]]:
+	"""
+	Analyze email headers (From, Return-Path, SPF, DKIM, DMARC) for authentication.
+	Lower score = more legitimate (passed authentication).
+	Returns header_auth_score, explanations.
+	"""
+	explanations = []
+	auth_score = 0.5  # Neutral default
+	
+	# Extract From domain
+	from_header = headers_dict.get("From", "")
+	from_domain = extract_domain(from_header) if from_header else ""
+	
+	# Extract Return-Path domain (actual sending server)
+	return_path = headers_dict.get("Return-Path", "")
+	return_path_domain = extract_domain(return_path) if return_path else ""
+	
+	# Check SPF result
+	spf_result = headers_dict.get("Received-SPF", "").lower()
+	spf_pass = "pass" in spf_result
+	
+	# Check DKIM results
+	auth_results = headers_dict.get("Authentication-Results", "").lower()
+	dkim_pass = "dkim=pass" in auth_results
+	dmarc_pass = "dmarc=pass" in auth_results
+	
+	# Check if From domain matches Return-Path domain (domain alignment)
+	domain_mismatch = from_domain and return_path_domain and (from_domain != return_path_domain)
+	
+	# Scoring logic
+	auth_points = 0
+	if spf_pass:
+		auth_points += 1
+		explanations.append("✓ SPF authentication passed")
+	else:
+		explanations.append("✗ SPF authentication failed or missing")
+	
+	if dkim_pass:
+		auth_points += 1
+		explanations.append("✓ DKIM signature verified")
+	else:
+		explanations.append("✗ DKIM signature failed or missing")
+	
+	if dmarc_pass:
+		auth_points += 1
+		explanations.append("✓ DMARC policy aligned")
+	else:
+		explanations.append("✗ DMARC policy failed or missing")
+	
+	if domain_mismatch:
+		explanations.append(f"⚠ Domain mismatch: From={from_domain}, Return-Path={return_path_domain}")
+		auth_points -= 1.5  # Significant risk indicator
+	
+	# Calculate header auth score (0 = all pass, 1 = all fail)
+	# Max auth_points = 3 (SPF + DKIM + DMARC)
+	auth_score = max(0.0, min(1.0, (3.0 - auth_points) / 3.0))
+	
+	if from_domain:
+		explanations.insert(0, f"From domain: {from_domain}")
+	
+	return auth_score, explanations
 
 # --- Step 3: Domain Analysis ---
 def extract_domain(email_or_url: str) -> str:
@@ -327,12 +430,64 @@ def compute_weighted_score(signals, weights):
 	weighted_sum = sum(sig[1] * weights.get(sig[0], 0.1) for sig in signals)
 	return weighted_sum / total_weight
 
+
+def compute_final_score(url_score, domain_score, intent_score, text_score, vt_score=0.0, header_score=0.0):
+	"""DEPRECATED: Use compute_final_score_ensemble instead.
+	
+	Compute final phishing risk score.
+	
+	Weights:
+	- URL: 35% (most reliable indicator)
+	- Domain: 20%
+	- Intent: 15%
+	- Text: 15%
+	- VirusTotal: 15% (if available - highest confidence)
+	- Header Auth: 10% (if available - SPF/DKIM/DMARC) - NEW
+	
+	If VT score is 0 (not available), redistribute to other signals.
+	If header score is 0 (headers not provided), redistribute to other signals.
+	"""
+	if vt_score > 0 and header_score > 0:
+		# VirusTotal + Header Auth available - use 6-signal ensemble
+		return (
+			0.28 * url_score +      # Reduced from 0.35
+			0.16 * domain_score +   # Reduced from 0.20
+			0.12 * intent_score +   # Reduced from 0.15
+			0.12 * text_score +     # Reduced from 0.15
+			0.12 * vt_score +       # Reduced from 0.15
+			0.20 * header_score     # NEW: Header authentication
+		)
+	elif vt_score > 0:
+		# VirusTotal available, no header auth - use 5-signal ensemble
+		return (
+			0.35 * url_score +
+			0.20 * domain_score +
+			0.15 * intent_score +
+			0.15 * text_score +
+			0.15 * vt_score
+		)
+	elif header_score > 0:
+		# Header auth available, no VirusTotal - use 5-signal ensemble
+		return (
+			0.32 * url_score +      # Reduced from 0.40
+			0.22 * domain_score +   # Reduced from 0.25
+			0.18 * intent_score +   # Reduced from 0.20
+			0.14 * text_score +     # Reduced from 0.15
+			0.14 * header_score     # Header authentication boost
+		)
+	else:
+		# VirusTotal and header not available - use 4-signal weighted average
+		return (
+			0.40 * url_score +
+			0.25 * domain_score +
+			0.20 * intent_score +
+			0.15 * text_score
+		)
+
 # --- Step 7-8: Main Engine ---
 def phishing_engine(email: Dict[str, Any]) -> Dict[str, Any]:
 	"""
 	Main entry: takes parsed email dict, runs 4+ analyses in parallel, returns explainable risk result.
-	
-	NEW: Uses confidence-based ensemble voting to reduce false positives.
 	
 	Email dict structure:
 	{
@@ -347,16 +502,6 @@ def phishing_engine(email: Dict[str, Any]) -> Dict[str, Any]:
 	body = email.get("body", "")
 	sender = email.get("sender", "")
 	urls = email.get("urls", [])
-	
-	# Check if sender is whitelisted (reduces false positives)
-	sender_domain = None
-	is_whitelisted = False
-	if sender:
-		try:
-			sender_domain = sender.split("@")[1].split(">")[0].lower() if "@" in sender else None
-			is_whitelisted = is_domain_whitelisted(sender_domain) if sender_domain else False
-		except:
-			pass
 	
 	# Check VirusTotal if available
 	vt_score = 0.0
@@ -388,34 +533,19 @@ def phishing_engine(email: Dict[str, Any]) -> Dict[str, Any]:
 		intent_score, matched_phrases, intent_expl = intent_future.result()
 		text_score, text_expl = text_future.result()
 	
-	# NEW: Ensemble voting instead of simple weighted average
-	final_score, confidence, signal_agreement = compute_final_score_ensemble(
-		url_score, domain_score, intent_score, text_score, vt_score, header_score, 
-		sender, is_whitelisted
-	)
+	# Final score (includes VT and header auth if available)
+	final_score = compute_final_score(url_score, domain_score, intent_score, text_score, vt_score, header_score)
 	
-	# NEW: Dynamic thresholds based on confidence and whitelist status
-	if is_whitelisted:
-		# Strict thresholds for known good senders
-		if final_score >= WHITELISTED_HIGH_RISK:
-			risk_level = "HIGH"
-		elif final_score >= WHITELISTED_MEDIUM_RISK:
-			risk_level = "MEDIUM"
-		else:
-			risk_level = "LOW"
+	# Risk level (adjusted thresholds for security priority)
+	if final_score >= 0.65:
+		risk_level = "HIGH"
+	elif final_score >= 0.45:
+		risk_level = "MEDIUM"
 	else:
-		# Standard thresholds for unknown senders
-		if final_score >= UNKNOWN_SENDER_HIGH_RISK:
-			risk_level = "HIGH"
-		elif final_score >= UNKNOWN_SENDER_MEDIUM_RISK:
-			risk_level = "MEDIUM"
-		else:
-			risk_level = "LOW"
+		risk_level = "LOW"
 	
-	# Add whitelist info to reasons if applicable
+	# Reasons
 	reasons = header_expl + url_expl + domain_expl + intent_expl + text_expl + vt_findings
-	if is_whitelisted and sender_domain:
-		reasons.insert(0, f"✓ Sender verified: {get_whitelist_info(sender_domain)}")
 	
 	# Highlight
 	highlight = {
@@ -425,10 +555,7 @@ def phishing_engine(email: Dict[str, Any]) -> Dict[str, Any]:
 	
 	return {
 		"risk_level": risk_level,
-		"final_score": final_score,
-		"confidence": confidence,
-		"signal_agreement": signal_agreement,
-		"is_whitelisted": is_whitelisted,
+		"final_score": round(final_score, 2),
 		"components": {
 			"url_score": round(url_score, 2),
 			"domain_score": round(domain_score, 2),
