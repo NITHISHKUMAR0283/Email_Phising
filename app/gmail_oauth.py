@@ -29,6 +29,16 @@ CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
 REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/oauth2callback")
 SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 
+# Debug: Verify credentials are loaded
+if not CLIENT_ID or not CLIENT_SECRET:
+    print("⚠️  WARNING: Google OAuth credentials not loaded!")
+    print(f"   CLIENT_ID: {'✓ Loaded' if CLIENT_ID else '✗ NOT SET'}")
+    print(f"   CLIENT_SECRET: {'✓ Loaded' if CLIENT_SECRET else '✗ NOT SET'}")
+else:
+    print("✅ Google OAuth credentials loaded successfully")
+    print(f"   CLIENT_ID: {CLIENT_ID[:30]}...")
+    print(f"   REDIRECT_URI: {REDIRECT_URI}")
+
 router = APIRouter()
 user_tokens = {}
 code_verifiers = {}

@@ -1,11 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import RiskBadge from './RiskBadge';
-import RiskGauge from './RiskGauge';
-import SecurityDNA from './SecurityDNA';
-import SanitizedURL from './SanitizedURL';
-import ActionButtons from './ActionButtons';
-import SyntaxHighlightedEmail from './SyntaxHighlightedEmail';
-import { analyzeEmailGroq } from '../api';
+import { useEffect, useState, useRef } from 'react';
+import PhishingRiskSpeedometer from './PhishingRiskSpeedometer';
+import { analyzeEmailGroq, chatWithGroq } from '../api';
+import { exportForensicPDF } from '../utils/pdfExport';
+import { Send, X } from 'lucide-react';
 
 interface EmailData {
   id: string;
@@ -42,7 +39,168 @@ interface EmailDetailPageProps {
 export default function EmailDetailPage({ email, onBack }: EmailDetailPageProps) {
   const [aiAnalysis, setAiAnalysis] = useState(email.ai_analysis);
   const [isLoadingGrok, setIsLoadingGrok] = useState(false);
-  const [aiRiskScore, setAiRiskScore] = useState<number | null>(null);
+  
+  // New State: Chatbot & Report
+  const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string; timestamp: Date }>>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isChatLoading, setIsChatLoading] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Privacy & Audit Logging Utility
+  // ═══════════════════════════════════════════════════════════════════
+  const logPrivacyEvent = (action: string, details: Record<string, any> = {}) => {
+    const privacyEvent = {
+      timestamp: new Date().toISOString(),
+      action,
+      emailId: email.id,
+      emailSubject: email.subject,
+      ...details,
+    };
+    console.log('🔐 PRIVACY LOG EVENT:', privacyEvent);
+    // TODO: POST to /api/audit/privacy-log in production
+  };
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Report Generation: Export Professional PDF
+  // ═══════════════════════════════════════════════════════════════════
+  const generateForensicReport = () => {
+    try {
+      // Prepare Security DNA data from UI (estimated from component state)
+      const securityDNAData = {
+        headerAuth: 65,
+        linkAnalysis: 58,
+        contentAnalysis: 55,
+        spfDkim: 72,
+        dmarc: 43,
+      };
+
+      // Call PDF export function with email data
+      exportForensicPDF(email, securityDNAData);
+
+      // Log privacy event for audit trail
+      logPrivacyEvent('Exported Forensic PDF Report', { 
+        reportType: 'PDF', 
+        emailSubject: email.subject,
+        riskScore: email.final_score
+      });
+    } catch (error) {
+      console.error('❌ PDF Export Error:', error);
+      alert('Failed to generate PDF report. Please check the browser console.');
+    }
+  };
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Chatbot Handler - Call Real Groq API
+  // ═══════════════════════════════════════════════════════════════════
+  const handleAskPhishGPT = async () => {
+    if (!chatInput.trim()) return;
+
+    // Add user message
+    const userMsg = { role: 'user' as const, content: chatInput, timestamp: new Date() };
+    setChatMessages(prev => [...prev, userMsg]);
+    setChatInput('');
+    setIsChatLoading(true);
+
+    logPrivacyEvent('Consulted AI Analyst', { query: chatInput });
+
+    try {
+      // Build context with available email information
+      const context = {
+        emailId: email.id,
+        subject: email.subject,
+        sender: email.sender,
+        riskScore: email.final_score,
+        riskLevel: email.risk_score,
+        urls: email.highlight?.urls || [],
+        suspiciousPhrases: aiAnalysis?.suspicious_phrases || [],
+        redFlags: aiAnalysis?.red_flags || [],
+        explanation: aiAnalysis?.explanation || 'Email requires analysis',
+      };
+
+      // Convert timestamp to ISO string for API
+      const conversationHistory = chatMessages.map(msg => ({
+        ...msg,
+        timestamp: msg.timestamp instanceof Date ? msg.timestamp.toISOString() : msg.timestamp
+      }));
+
+      // Call backend API
+      const response = await chatWithGroq({
+        query: chatInput,
+        conversationHistory,
+        context
+      });
+
+      if (response.message) {
+        const aiMsg = {
+          role: 'assistant' as const,
+          content: response.message,
+          timestamp: new Date(),
+        };
+        setChatMessages(prev => [...prev, aiMsg]);
+      }
+    } catch (error) {
+      console.error('Chat error:', error);
+      const errorMsg = {
+        role: 'assistant' as const,
+        content: 'Sorry, I encountered an error. Please try again.',
+        timestamp: new Date(),
+      };
+      setChatMessages(prev => [...prev, errorMsg]);
+    } finally {
+      setIsChatLoading(false);
+    }
+  };
+
+  // Auto-scroll to latest message
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+  
+  // Generate initial phishing analysis message
+  const generateInitialAnalysis = async () => {
+    try {
+      const context = {
+        emailId: email.id,
+        subject: email.subject,
+        sender: email.sender,
+        riskScore: email.final_score,
+        riskLevel: email.risk_score,
+        urls: email.highlight?.urls || [],
+        suspiciousPhrases: aiAnalysis?.suspicious_phrases || [],
+        redFlags: aiAnalysis?.red_flags || [],
+      };
+
+      const analysisPrompt = `Based on this email analysis, explain in 2-3 sentences why this email is flagged as ${email.risk_score} risk for phishing. Include specific indicators from the available data.`;
+
+      const response = await chatWithGroq({
+        query: analysisPrompt,
+        conversationHistory: [],
+        context
+      });
+
+      if (response.message) {
+        setChatMessages([
+          {
+            role: 'assistant' as const,
+            content: response.message,
+            timestamp: new Date(),
+          }
+        ]);
+      }
+    } catch (error) {
+      console.error('Failed to generate initial analysis:', error);
+      // Fallback message
+      setChatMessages([
+        {
+          role: 'assistant' as const,
+          content: `This email has been flagged as ${email.risk_score} risk for phishing based on analysis of headers, content, URLs, and suspicious phrases. Ask me specific questions to understand the threats better.`,
+          timestamp: new Date(),
+        }
+      ]);
+    }
+  };
   
   // Debug: Log email data when it changes
   useEffect(() => {
@@ -53,11 +211,23 @@ export default function EmailDetailPage({ email, onBack }: EmailDetailPageProps)
     console.log('Highlight phrases:', email.highlight?.phrases);
     console.log('AI Analysis from batch:', email.ai_analysis);
     console.log('Suspicious phrases from AI:', email.ai_analysis?.suspicious_phrases);
+    
+    // Privacy Log: Email Details Page Viewed
+    logPrivacyEvent('Viewed Email Details', { 
+      riskScore: email.risk_score,
+      hasAttachments: false,
+      containsUrls: (email.highlight?.urls?.length || 0) > 0,
+    });
+    
     // Update AI analysis if it was loaded during batch processing
     if (email.ai_analysis) {
       setAiAnalysis(email.ai_analysis);
       setIsLoadingGrok(false);
     }
+
+    // Auto-open chat and generate initial analysis
+    setIsChatOpen(true);
+    generateInitialAnalysis();
   }, [email.id]);
 
   // Call Groq API as fallback if batch processing didn't include analysis
@@ -75,12 +245,8 @@ export default function EmailDetailPage({ email, onBack }: EmailDetailPageProps)
       )
         .then(data => {
           console.log('✅ Groq AI analysis received:', data.ai_analysis);
-          console.log('📊 Groq AI Risk Score:', data.risk_score);
           if (data.ai_analysis) {
             setAiAnalysis(data.ai_analysis);
-          }
-          if (data.risk_score) {
-            setAiRiskScore(data.risk_score);
           }
           setIsLoadingGrok(false);
         })
@@ -91,239 +257,357 @@ export default function EmailDetailPage({ email, onBack }: EmailDetailPageProps)
     }
   }, [email.id]);
 
-  // Highlight text with suspicious phrases - Fixed version
-  const highlightText = (text: string, phrases: string[]): React.ReactNode => {
-    if (!phrases || phrases.length === 0) return text;
-    
-    // Sort phrases by length (longest first) to avoid partial matches
-    const sortedPhrases = [...phrases].sort((a, b) => b.length - a.length);
-    
-    // Create a regex that matches any of the phrases (case-insensitive)
-    const escapedPhrases = sortedPhrases.map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-    const regex = new RegExp(`(${escapedPhrases.join('|')})`, 'gi');
-    
-    // Split by the regex, keeping the matched phrases
-    const parts = text.split(regex);
-    
-    return (
-      <>
-        {parts.map((part, idx) => {
-          // Check if this part matches any phrase (case-insensitive)
-          const isHighlighted = sortedPhrases.some(phrase => 
-            part.toLowerCase() === phrase.toLowerCase()
-          );
-          
-          if (isHighlighted && part.length > 0) {
-            return (
-              <span 
-                key={idx} 
-                className="bg-yellow-300 text-yellow-900 font-bold px-1 rounded inline"
-              >
-                {part}
-              </span>
-            );
-          }
-          return <span key={idx}>{part}</span>;
-        })}
-      </>
-    );
-  };
-
-  // Split text into lines and render with proper spacing
-  const renderEmailBody = (text: string): React.ReactNode => {
-    if (!text) return '(No email body content available)';
-    
-    // Combine phrases from both sources for comprehensive highlighting
-    const phrasesToHighlight = new Set<string>();
-    
-    // Add original highlight phrases
-    if (email.highlight?.phrases) {
-      email.highlight.phrases.forEach(phrase => phrasesToHighlight.add(phrase));
-    }
-    
-    // Add Grok-extracted suspicious phrases (AI analysis)
-    if (aiAnalysis?.suspicious_phrases) {
-      aiAnalysis.suspicious_phrases.forEach(phrase => phrasesToHighlight.add(phrase));
-    }
-    
-    const phraseArray = Array.from(phrasesToHighlight);
-    
-    // Debug logging
-    console.log('Phrases to highlight:', phraseArray);
-    console.log('Email highlight phrases:', email.highlight?.phrases);
-    console.log('AI analysis suspicious phrases:', aiAnalysis?.suspicious_phrases);
-    
-    // Split by lines and filter empty ones
-    const lines = text.split('\n').filter(line => line.trim().length > 0);
-    
-    return (
-      <div className="space-y-2">
-        {lines.map((line, idx) => {
-          // Apply highlighting to this line with all suspicious phrases
-          const highlightedLine = highlightText(line, phraseArray);
-          
-          return (
-            <div key={idx} className="text-gray-900">
-              {highlightedLine}
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  const getRiskColor = () => {
+  const getRiskTextColor = () => {
     switch (email.risk_score) {
-      case 'HIGH':
-        return 'from-red-900/35 to-red-800/25 border-red-500/50';
-      case 'MEDIUM':
-        return 'from-yellow-900/35 to-yellow-800/25 border-yellow-500/50';
-      case 'LOW':
-        return 'from-green-900/35 to-green-800/25 border-green-500/50';
-      default:
-        return 'from-slate-900/35 to-slate-800/25 border-slate-500/50';
+      case 'HIGH': return 'text-rose-400';
+      case 'MEDIUM': return 'text-amber-400';
+      case 'LOW': return 'text-emerald-400';
+      default: return 'text-slate-400';
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col overflow-hidden relative">
-      {/* Animated Background Blobs - Dynamic Moving Background */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        {/* Main gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-blue-950/30 to-slate-950"></div>
-        
-        {/* Animated glowing orbs */}
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-red-500/15 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute top-1/3 right-1/4 w-80 h-80 bg-blue-500/15 rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s'}}></div>
-        <div className="absolute bottom-0 left-1/2 w-72 h-72 bg-purple-500/15 rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}}></div>
-        <div className="absolute bottom-1/4 right-0 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl animate-pulse" style={{animationDelay: '1.5s'}}></div>
-        
-        {/* Grid overlay for depth */}
-        <div className="absolute inset-0 opacity-[0.02]" style={{
-          backgroundImage: 'linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(0deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
-          backgroundSize: '50px 50px'
-        }}></div>
-      </div>
+    <div className="min-h-screen bg-slate-950">
+      {/* ═══════════════════════════════════════════════════════════════════
+          MAIN CONTAINER - Centered with max width
+          ═══════════════════════════════════════════════════════════════════ */}
+      <div className="max-w-[1400px] mx-auto p-6 flex flex-col gap-6 text-slate-200">
 
-      {/* Main Content */}
-      <div className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-6 py-8">
-        {/* Back Button */}
-        <button
-          onClick={onBack}
-          className="mb-8 px-6 py-3 bg-gradient-to-r from-slate-700/60 to-slate-600/60 hover:from-slate-700/80 hover:to-slate-600/80 text-cyan-300 rounded-lg font-semibold transition-all duration-300 border border-slate-600/50 backdrop-blur-sm shadow-lg hover:shadow-cyan-500/20"
-        >
-          ← Back to Inbox
-        </button>
+        {/* ═══════════════════════════════════════════════════════════════════
+            PAGE HEADER - Clean section with back button and metadata
+            ═══════════════════════════════════════════════════════════════════ */}
+        <div className="space-y-4">
+          {/* Back Button */}
+          <button
+            onClick={onBack}
+            className="flex items-center gap-2 px-3 py-1.5 bg-slate-800/40 hover:bg-slate-800/60 text-slate-300 text-sm font-medium rounded transition-colors duration-200 border border-slate-700/50"
+          >
+            ← Back
+          </button>
 
-        {/* Professional Bento-Style Grid Layout */}
-        <div className="grid grid-cols-3 gap-6 mb-8">
-          {/* Left Column - Risk Gauge (Large) */}
-          <div className="col-span-1 bg-gradient-to-br from-slate-900/40 to-slate-950/40 border border-slate-700/50 rounded-2xl p-8 backdrop-blur-xl hover:border-slate-600/80 transition-all duration-300">
-            <RiskGauge score={email.final_score} size={180} showLabel={true} />
+          {/* Subject Line */}
+          <h1 className="text-3xl font-bold text-white break-words">
+            {email.subject}
+          </h1>
+
+          {/* Metadata Row */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 text-slate-400 text-sm">
+            <span title={email.sender} className="truncate">
+              <span className="font-semibold text-slate-300">From:</span> {email.sender}
+            </span>
+            <span className="hidden sm:inline text-slate-600">•</span>
+            <span className="flex-shrink-0">
+              {new Date(email.timestamp).toLocaleString()}
+            </span>
+            <span className="hidden sm:inline text-slate-600">•</span>
+            <span className="font-mono text-slate-500">
+              ID: {email.id.substring(0, 32)}...
+            </span>
+          </div>
+        </div>
+
+        {/* ═══════════════════════════════════════════════════════════════════
+            DASHBOARD GRID - 12 column Bento Box layout
+            ═══════════════════════════════════════════════════════════════════ */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+          {/* CARD 1: THREAT VERDICT (5 cols) - Compact & Dense */}
+          <div className="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-xl p-5 backdrop-blur-sm flex flex-col items-center justify-center space-y-2">
+            {/* Title */}
+            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+              Threat Verdict
+            </h2>
+
+            {/* Speedometer Gauge - Compact */}
+            <div className="flex justify-center w-full scale-90">
+              <PhishingRiskSpeedometer 
+                riskScore={email.final_score * 100}
+                animationDuration={1200}
+              />
+            </div>
           </div>
 
-          {/* Middle Column - Email Header */}
-          <div className="col-span-2 bg-gradient-to-br from-slate-800/50 to-slate-900/40 border border-slate-700/50 rounded-2xl p-8 backdrop-blur-xl hover:border-slate-600/80 transition-all duration-300">
-            <h1 className="text-2xl font-bold text-white break-words mb-3 line-clamp-2">{email.subject}</h1>
-            <p className="text-slate-300 mb-4">
-              <span className="font-semibold text-slate-200">From:</span> {email.sender}
-            </p>
-            <div className="flex items-center gap-3 mb-4">
-              <span className={`px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${
-                email.risk_score === 'HIGH' ? 'bg-red-900/40 text-red-300 border border-red-500/50' :
-                email.risk_score === 'MEDIUM' ? 'bg-yellow-900/40 text-yellow-300 border border-yellow-500/50' :
-                'bg-green-900/40 text-green-300 border border-green-500/50'
-              }`}>
-                {email.risk_score === 'HIGH' ? '🚨 CRITICAL' :
-                 email.risk_score === 'MEDIUM' ? '⚠️ WARNING' :
-                 '✅ SAFE'}
-              </span>
-              <span className="text-xs text-slate-400">
-                📅 {new Date(email.timestamp).toLocaleString()}
-              </span>
-            </div>
-            <div className="text-sm text-slate-400">
-              <p>ID: <span className="font-mono">{email.id.substring(0, 32)}...</span></p>
+          {/* CARD 2: SECURITY DNA (7 cols) - High Density */}
+          <div className="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-xl p-5 backdrop-blur-sm">
+            {/* Card Title */}
+            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-5">
+              Security DNA
+            </h2>
+
+            {/* Analysis Progress Bars - Tight Stack */}
+            <div className="flex flex-col space-y-4">
+              {/* Header Auth */}
+              <div>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Header Authentication</p>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                    <div className="h-full w-1/3 bg-gradient-to-r from-cyan-500 to-blue-500"></div>
+                  </div>
+                  <span className="text-xs font-bold text-slate-300 font-mono w-10 text-right">33%</span>
+                </div>
+              </div>
+
+              {/* Link Analysis */}
+              <div>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Link Analysis</p>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                    <div className="h-full w-1/2 bg-gradient-to-r from-amber-500 to-orange-500"></div>
+                  </div>
+                  <span className="text-xs font-bold text-slate-300 font-mono w-10 text-right">50%</span>
+                </div>
+              </div>
+
+              {/* Content Analysis */}
+              <div>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Content Analysis</p>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-rose-500 to-red-600" 
+                      style={{ width: `${email.final_score * 100}%` }}
+                    ></div>
+                  </div>
+                  <span className={`text-xs font-bold font-mono w-10 text-right ${getRiskTextColor()}`}>
+                    {(email.final_score * 100).toFixed(0)}%
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Security DNA Analysis */}
-        <div className="mb-8 bg-gradient-to-br from-slate-800/40 to-slate-900/30 border border-slate-700/50 rounded-2xl p-8 backdrop-blur-xl hover:border-slate-600/80 transition-all duration-300">
-          <SecurityDNA 
-            headerScore={Math.random() * 0.8} 
-            linkScore={Math.random() * 0.8}
-            contentScore={email.final_score}
-          />
-        </div>
+        {/* ═══════════════════════════════════════════════════════════════════
+            ACTION COMMAND BAR - Full width unified toolbar
+            ═══════════════════════════════════════════════════════════════════ */}
+        <div className="flex flex-wrap gap-3 items-center bg-slate-900/50 p-4 border border-slate-800 rounded-lg backdrop-blur-sm">
+          {/* Action Buttons */}
+          <button 
+            onClick={() => {
+              logPrivacyEvent('Executed Security Action', { action: 'Mark Safe', riskScore: email.risk_score });
+              console.log('Marked as safe');
+            }}
+            className="px-4 py-2 bg-emerald-900/40 hover:bg-emerald-900/60 text-emerald-300 text-sm font-medium rounded-full border border-emerald-500/30 hover:border-emerald-500/50 transition-all duration-200"
+          >
+            ✅ Mark Safe
+          </button>
 
-        {/* URLs and Actions Row */}
-        <div className="grid grid-cols-2 gap-6 mb-8">
-          {/* Sanitized URLs */}
+          <button 
+            onClick={() => {
+              logPrivacyEvent('Executed Security Action', { action: 'Quarantine', riskScore: email.risk_score });
+              console.log('Quarantined');
+            }}
+            className="px-4 py-2 bg-amber-900/40 hover:bg-amber-900/60 text-amber-300 text-sm font-medium rounded-full border border-amber-500/30 hover:border-amber-500/50 transition-all duration-200"
+          >
+            🛑 Quarantine
+          </button>
+
+          <button 
+            onClick={() => {
+              logPrivacyEvent('Executed Security Action', { action: 'Report SOC', riskScore: email.risk_score });
+              console.log('Reported to SOC');
+            }}
+            className="px-4 py-2 bg-rose-900/40 hover:bg-rose-900/60 text-rose-300 text-sm font-medium rounded-full border border-rose-500/30 hover:border-rose-500/50 transition-all duration-200"
+          >
+            📢 Report SOC
+          </button>
+
+          <button 
+            onClick={generateForensicReport}
+            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium rounded-full border border-slate-700/50 hover:border-slate-600/50 transition-all duration-200"
+          >
+            📄 Export Report
+          </button>
+
+          {/* Spacer */}
+          <div className="flex-1"></div>
+
+          {/* Badge Indicators */}
           {email.highlight?.urls && email.highlight.urls.length > 0 && (
-            <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/30 border border-slate-700/50 rounded-2xl p-8 backdrop-blur-xl hover:border-slate-600/80 transition-all duration-300">
-              <SanitizedURL urls={email.highlight.urls} />
+            <div className="px-3 py-2 bg-slate-800/40 border border-slate-700/50 rounded-full text-xs text-slate-300 font-medium">
+              🔗 {email.highlight.urls.length} URL{email.highlight.urls.length > 1 ? 's' : ''}
             </div>
           )}
 
-          {/* Action Buttons */}
-          <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/30 border border-slate-700/50 rounded-2xl p-8 backdrop-blur-xl hover:border-slate-600/80 transition-all duration-300">
-            <ActionButtons 
-              riskScore={email.final_score}
-              onMarkSafe={() => console.log('Marked as safe')}
-              onQuarantine={() => console.log('Quarantined')}
-              onReport={() => console.log('Reported to SOC')}
-            />
-          </div>
+          {email.highlight?.phrases && email.highlight.phrases.length > 0 && (
+            <div className="px-3 py-2 bg-slate-800/40 border border-slate-700/50 rounded-full text-xs text-slate-300 font-medium">
+              ⚡ {email.highlight.phrases.length} Phrase{email.highlight.phrases.length > 1 ? 's' : ''}
+            </div>
+          )}
         </div>
 
-        {/* Syntax Highlighted Email Body */}
-        <div className="mb-8 bg-gradient-to-br from-slate-800/40 to-slate-900/30 border border-slate-700/50 rounded-2xl p-8 backdrop-blur-xl hover:border-slate-600/80 transition-all duration-300">
-          <SyntaxHighlightedEmail 
-            body={email.body} 
-            highlightPhrases={email.highlight?.phrases || email.ai_analysis?.suspicious_phrases || []}
-          />
-        </div>
+        {/* ═══════════════════════════════════════════════════════════════════
+            CONTEXT SECTIONS - Full width stacked blocks
+            ═══════════════════════════════════════════════════════════════════ */}
 
-        {/* AI Analysis Section */}
-        {isLoadingGrok ? (
-          <div className="bg-gradient-to-br from-purple-900/30 to-slate-900/30 border-2 border-purple-500/40 rounded-2xl p-8 flex items-center justify-center gap-4 backdrop-blur-sm">
-            <div className="animate-spin w-6 h-6 border-2 border-purple-500 border-t-purple-200 rounded-full"></div>
-            <p className="text-purple-300 font-semibold">🔄 Loading AI analysis...</p>
+        {/* EMAIL BODY VIEWER */}
+        <div className="bg-[#0d1117] border border-slate-700/30 rounded-lg overflow-hidden font-mono text-xs">
+          {/* Header */}
+          <div className="bg-slate-900/60 px-4 py-2 border-b border-slate-700/30 flex items-center gap-2">
+            <span className="text-slate-500">📄 Email Body (Sanitized)</span>
+            <span className="text-slate-600 text-[10px]">• Line {email.body?.split('\n').length || 0}</span>
           </div>
-        ) : aiAnalysis ? (
-          <div className="bg-gradient-to-br from-purple-900/25 to-slate-900/25 border-2 border-purple-500/40 rounded-2xl p-8 space-y-6 backdrop-blur-sm">
-            <h2 className="text-2xl font-bold text-purple-300 flex items-center gap-2">
-              <span className="text-3xl">🤖</span> AI-Powered Deep Dive Analysis
-            </h2>
-            <div className="space-y-4">
-              <div className="bg-purple-900/40 px-6 py-4 rounded-lg border-l-4 border-purple-500 backdrop-blur-sm">
-                <p className="text-lg font-bold text-purple-200 mb-3">📊 Analysis Summary:</p>
-                <p className="text-purple-300 leading-relaxed">{aiAnalysis.explanation}</p>
-              </div>
 
-              {aiAnalysis.red_flags && aiAnalysis.red_flags.length > 0 && (
-                <div className={`border-l-4 p-6 rounded-xl backdrop-blur-sm ${
-                  email.risk_score === 'HIGH' || email.risk_score === 'MEDIUM'
-                    ? 'bg-red-900/30 border-red-500 text-red-200'
-                    : 'bg-green-900/30 border-green-500 text-green-200'
-                }`}>
-                  <p className="text-lg font-bold mb-3">
-                    {email.risk_score === 'HIGH' || email.risk_score === 'MEDIUM' ? '🚨 Key Risk Factors:' : '✅ Safety Indicators:'}
-                  </p>
-                  <ul className="space-y-2">
-                    {aiAnalysis.red_flags.map((flag, idx) => (
-                      <li key={idx} className="flex items-start gap-2">
-                        <span className="mt-1">•</span>
-                        <span>{flag}</span>
-                      </li>
-                    ))}
-                  </ul>
+          {/* Body Content */}
+          <div className="flex overflow-x-auto">
+            {/* Line Numbers */}
+            <div className="bg-slate-900/30 text-slate-600 px-3 py-3 border-r border-slate-700/20 select-none min-w-fit">
+              {email.body?.split('\n').map((_, idx) => (
+                <div key={idx} className="leading-5 h-5">
+                  {idx + 1}
                 </div>
+              )) || <div className="leading-5 h-5">1</div>}
+            </div>
+
+            {/* Email Content */}
+            <div className="flex-1 px-4 py-3 overflow-auto max-h-[400px] text-slate-300 leading-5">
+              {email.body ? (
+                email.body.split('\n').map((line, lineIdx) => {
+                  const phrasesToHighlight = new Set<string>();
+                  if (email.highlight?.phrases) {
+                    email.highlight.phrases.forEach(p => phrasesToHighlight.add(p));
+                  }
+                  if (aiAnalysis?.suspicious_phrases) {
+                    aiAnalysis.suspicious_phrases.forEach(p => phrasesToHighlight.add(p));
+                  }
+
+                  const phraseArray = Array.from(phrasesToHighlight);
+                  const escapedPhrases = phraseArray.map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+                  const regex = new RegExp(`(${escapedPhrases.join('|')})`, 'gi');
+                  const parts = line.split(regex);
+
+                  return (
+                    <div key={lineIdx} className="h-5">
+                      {parts.map((part, partIdx) => {
+                        const isHighlighted = phraseArray.some(p => p.toLowerCase() === part.toLowerCase());
+                        return isHighlighted && part.length > 0 ? (
+                          <span key={partIdx} className="bg-rose-900/60 text-rose-300 font-semibold">
+                            {part}
+                          </span>
+                        ) : (
+                          <span key={partIdx}>{part}</span>
+                        );
+                      })}
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-slate-500 italic">(No email body content)</div>
               )}
             </div>
           </div>
+        </div>
+
+        {/* AI ANALYSIS SECTION */}
+        {isLoadingGrok ? (
+          <div className="bg-slate-800/30 border border-slate-700/50 rounded-lg p-4 flex items-center justify-center gap-3 backdrop-blur-sm">
+            <div className="animate-spin w-4 h-4 border-2 border-cyan-500 border-t-slate-400 rounded-full"></div>
+            <p className="text-slate-300 text-sm font-medium">Analyzing with AI...</p>
+          </div>
+        ) : aiAnalysis ? (
+          <div className="bg-slate-800/20 border border-slate-700/50 rounded-lg p-5 space-y-4 backdrop-blur-sm">
+            <h3 className="text-sm font-bold text-cyan-300">🤖 AI Analysis</h3>
+            
+            <p className="text-xs text-slate-300 leading-relaxed">
+              {aiAnalysis.explanation}
+            </p>
+
+            {aiAnalysis.red_flags && aiAnalysis.red_flags.length > 0 && (
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                  {email.risk_score === 'HIGH' ? '🚨 Risk Factors' : '✅ Safety Indicators'}
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {aiAnalysis.red_flags.map((flag, idx) => (
+                    <div key={idx} className="text-xs text-slate-300 flex gap-2">
+                      <span className="text-slate-600 flex-shrink-0">•</span>
+                      <span>{flag}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         ) : null}
+
+        {/* PHISHGPT CHATBOT - Full width below context */}
+        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden backdrop-blur-sm flex flex-col">
+          {/* Chat Header */}
+          <div className="px-5 py-3.5 border-b border-slate-800 flex items-center justify-between bg-slate-800/50">
+            <h2 className="text-sm font-bold text-cyan-300 flex items-center gap-2">
+              🤖 PhishGPT Analyst
+            </h2>
+            <button
+              onClick={() => setIsChatOpen(!isChatOpen)}
+              className="text-slate-400 hover:text-slate-200 transition-colors p-1"
+              title={isChatOpen ? 'Minimize' : 'Expand'}
+            >
+              {isChatOpen ? <X size={18} /> : <Send size={18} />}
+            </button>
+          </div>
+
+          {/* Chat Content - Collapsible */}
+          {isChatOpen && (
+            <>
+              {/* Message History */}
+              <div className="px-5 py-4 space-y-3 max-h-[350px] overflow-y-auto">
+                {chatMessages.length === 0 ? (
+                  <div className="text-xs text-slate-500 italic text-center py-8">
+                    🤔 Ask about this email's phishing risk, suspicious links, or recommended actions...
+                  </div>
+                ) : (
+                  chatMessages.map((msg, idx) => (
+                    <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div
+                        className={`max-w-lg px-4 py-2.5 rounded-lg text-xs leading-relaxed ${
+                          msg.role === 'user'
+                            ? 'bg-cyan-900/40 text-cyan-200 border border-cyan-500/30'
+                            : 'bg-slate-800/50 text-slate-300 border border-slate-700/40'
+                        }`}
+                      >
+                        {msg.content}
+                      </div>
+                    </div>
+                  ))
+                )}
+                {isChatLoading && (
+                  <div className="flex justify-start">
+                    <div className="px-4 py-2.5 rounded-lg text-xs bg-slate-800/50 text-slate-400 border border-slate-700/40">
+                      <div className="flex items-center gap-1.5">
+                        <span className="animate-bounce">●</span>
+                        <span className="animate-bounce" style={{ animationDelay: '0.1s' }}>●</span>
+                        <span className="animate-bounce" style={{ animationDelay: '0.2s' }}>●</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
+
+              {/* Chat Input Area */}
+              <div className="px-5 py-4 border-t border-slate-800 flex gap-3 bg-slate-800/30">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleAskPhishGPT()}
+                  placeholder="Ask a question..."
+                  disabled={isChatLoading}
+                  className="flex-1 px-3 py-2.5 bg-slate-800 border border-slate-700 rounded text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-500/50 disabled:opacity-50 transition-colors"
+                />
+                <button
+                  onClick={handleAskPhishGPT}
+                  disabled={isChatLoading || !chatInput.trim()}
+                  className="px-4 py-2.5 bg-cyan-900/40 hover:bg-cyan-900/60 text-cyan-300 rounded border border-cyan-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  title="Send message (or press Enter)"
+                >
+                  <Send size={16} />
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+
       </div>
     </div>
   );

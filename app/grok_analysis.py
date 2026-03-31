@@ -10,16 +10,23 @@ from typing import Dict, Any, Optional
 import requests
 from datetime import datetime
 import time
-import threading
 
-# Groq API configuration (not xAI)
-GROK_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROK_API_URL = "https://api.groq.com/openai/v1/chat/completions"  # Correct Groq endpoint
-GROK_ENABLED = bool(GROK_API_KEY)  # Only enable if API key is provided
+# Groq API configuration - USE SINGLE PRIMARY KEY ONLY
+GROK_API_KEY = "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"
+GROK_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROK_ENABLED = bool(GROK_API_KEY)
 
-# Rate limiting & request serialization
+# Debug: Print key status on module load
+print(f"[GROK] API Key loaded: {'✅ YES' if GROK_API_KEY else '❌ NO'}")
+if GROK_API_KEY:
+    print(f"[GROK] Key preview: {GROK_API_KEY[:20]}...{GROK_API_KEY[-10:]}")
+    print(f"[GROK] Using SINGLE API key (no rotation)")
+else:
+    print("[GROK] ERROR: GROQ_API_KEY not found!")
+
+# Rate limiting
 LAST_REQUEST_TIME = 0
-MIN_REQUEST_INTERVAL = 0  # No rate limit - send requests immediately
+MIN_REQUEST_INTERVAL = 0.5  # Minimum 0.5s between requests
 
 def generate_grok_analysis(
     email_text: str,
@@ -302,9 +309,19 @@ Return ONLY valid, parseable JSON - NO other text:
     return prompt
 
 
-def call_grok_api(prompt: str, max_retries: int = 3) -> Optional[str]:
+
+def call_grok_api(prompt: str, max_retries: int = 2, json_mode: bool = True) -> Optional[str]:
     """
-    Call Groq API without serialization - concurrent requests allowed.
+    Simple, fast Groq API call with single key (no rotation).
+    Retries with exponential backoff only.
+    
+    Args:
+        prompt: The prompt/message to send
+        max_retries: Number of retry attempts (default 2)
+        json_mode: If True, request JSON response; if False, natural language
+    
+    Returns:
+        Response content on success, None on failure
     """
     global LAST_REQUEST_TIME
     
@@ -312,28 +329,27 @@ def call_grok_api(prompt: str, max_retries: int = 3) -> Optional[str]:
     elapsed = time.time() - LAST_REQUEST_TIME
     if elapsed < MIN_REQUEST_INTERVAL:
         wait = MIN_REQUEST_INTERVAL - elapsed
-        print(f"[DEBUG] Rate limiting: waiting {wait:.1f}s...")
         time.sleep(wait)
     
     for attempt in range(max_retries):
         try:
+            if attempt == 0:
+                print(f"[DEBUG] Using API key: {GROK_API_KEY[:20]}...{GROK_API_KEY[-10:]}")
+            
             headers = {
                 "Authorization": f"Bearer {GROK_API_KEY}",
                 "Content-Type": "application/json"
             }
             
+            system_content = "You are a cybersecurity expert. Respond ONLY with valid JSON." if json_mode else \
+                            "You are PhishGPT, an expert email security assistant. Provide helpful, concise responses about phishing risks."
+            
             payload = {
                 "messages": [
-                    {
-                        "role": "system",
-                        "content": "You are a cybersecurity expert. Respond ONLY with valid JSON."
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
+                    {"role": "system", "content": system_content},
+                    {"role": "user", "content": prompt}
                 ],
-                "model": "llama-3.1-8b-instant",  # Faster model with higher rate limits
+                "model": "llama-3.1-8b-instant",
                 "temperature": 0.5,
                 "max_tokens": 512
             }
@@ -345,30 +361,39 @@ def call_grok_api(prompt: str, max_retries: int = 3) -> Optional[str]:
             
             print(f"[DEBUG] Groq Status: {response.status_code}")
             
-            # Handle rate limiting
-            if response.status_code == 429:  # Too Many Requests
-                wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
-                print(f"[DEBUG] Rate limited. Waiting {wait_time}s before retry...")
-                time.sleep(wait_time)
-                continue
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("choices") and len(data["choices"]) > 0:
+                    result = data["choices"][0]["message"]["content"]
+                    print(f"[DEBUG] ✅ Groq success")
+                    return result
+                else:
+                    print(f"[DEBUG] Empty response from API")
+                    continue
             
-            if response.status_code != 200:
+            elif response.status_code == 429:
+                # Rate limited - just retry with backoff
+                if attempt < max_retries - 1:
+                    wait_time = 2 ** attempt  # 1s, 2s
+                    print(f"[DEBUG] Rate limited. Retrying in {wait_time}s...")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    print(f"[ERROR] Rate limited on final attempt - falling back to heuristics")
+                    return None
+            
+            elif response.status_code == 401:
+                print(f"[ERROR] 401 UNAUTHORIZED - Invalid API key")
+                return None
+            
+            else:
                 error_detail = response.text[:300] if response.text else "No detail"
-                print(f"[DEBUG] Error: {error_detail}")
+                print(f"[ERROR] {response.status_code}: {error_detail}")
                 if attempt < max_retries - 1:
                     time.sleep(1)
                     continue
                 return None
-            
-            # Success
-            data = response.json()
-            if data.get("choices") and len(data["choices"]) > 0:
-                result = data["choices"][0]["message"]["content"]
-                print(f"[DEBUG] ✅ Groq success")
-                return result
-            
-            return None
-            
+        
         except requests.exceptions.Timeout:
             print(f"[DEBUG] Timeout on attempt {attempt+1}")
             if attempt < max_retries - 1:
@@ -376,11 +401,14 @@ def call_grok_api(prompt: str, max_retries: int = 3) -> Optional[str]:
                 continue
             return None
         except Exception as e:
-            print(f"[DEBUG] Exception: {str(e)[:100]}")
+            print(f"[ERROR] Exception: {str(e)[:100]}")
             if attempt < max_retries - 1:
                 time.sleep(1)
                 continue
             return None
+    
+    print(f"[ERROR] API call failed after {max_retries} attempts - falling back to heuristics")
+    return None
     
     return None
 

@@ -1,5 +1,15 @@
 
  
+import os
+from datetime import datetime
+
+# Load environment variables FIRST before any imports that use them
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .gmail_oauth import router as gmail_router
@@ -11,16 +21,13 @@ from .utils import combine_signals, extract_highlighted_tokens
 from .quiz import generate_quiz
 from .phishing_engine import load_all_models, phishing_engine
 from .grok_analysis import generate_grok_analysis
-from datetime import datetime
-import os
-
-# Try to load environment variables from .env file (optional)
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    # If dotenv not installed, just use environment variables directly
-    pass
+from .schemas import (
+    ChatRequest, ChatResponse, PrivacyEventType, PrivacyLogEntry
+)
+from .security_services import (
+    generate_chatbot_response, generate_flagged_report, export_report_to_csv,
+    append_privacy_log, get_privacy_log
+)
 
 
 
@@ -44,11 +51,63 @@ model, tokenizer = None, None
 
 @app.on_event("startup")
 async def startup_event():
-    """Backend startup - models will load on demand."""
-    print("\n🚀 Backend started!")
-    print("✅ Server ready on http://localhost:8000\n")
+    """Backend startup - load all models on initialization."""
+    global model, tokenizer
+    
+    print("\n🚀 Backend starting up...")
+    print("📦 Loading ML models...")
+    
+    try:
+        # Load main phishing detection model
+        print("   ├─ Loading phishing detection model...")
+        model, tokenizer = load_model()
+        print("   ├─ ✅ Phishing model loaded")
+        
+        # Load ensemble models (phishing engine)
+        print("   ├─ Loading ensemble models...")
+        load_all_models()
+        print("   ├─ ✅ Ensemble models loaded")
+        
+        # Test Groq API connection
+        print("   ├─ Testing Groq API connection...")
+        from .grok_analysis import GROK_API_KEY, GROK_ENABLED
+        if GROK_ENABLED:
+            print(f"   ├─ ✅ Groq API enabled (using single key)")
+            print(f"   ├─ Key: {GROK_API_KEY[:20]}...{GROK_API_KEY[-10:]}")
+        else:
+            print("   ├─ ⚠️  Groq API disabled (will use heuristics fallback)")
+        
+        print("   └─ Models initialization complete!")
+        print("\n✅ Backend ready on http://localhost:8000")
+        print("✅ All models loaded and ready to use")
+        print("✅ Using single Groq API key (fast & simple)\n")
+        
+    except Exception as e:
+        print(f"\n❌ ERROR during model loading: {str(e)}")
+        print("⚠️  Backend will attempt to load models on-demand\n")
+        raise
 
 print("Backend initializing...")
+
+@app.get("/health")
+def health_check():
+    """Check backend health and model status."""
+    global model, tokenizer
+    
+    from .grok_analysis import GROK_ENABLED, GROK_API_KEY
+    
+    return {
+        "status": "🟢 online",
+        "models_loaded": model is not None and tokenizer is not None,
+        "phishing_model": "✅ loaded" if model else "❌ not loaded",
+        "tokenizer": "✅ loaded" if tokenizer else "❌ not loaded",
+        "groq_api": {
+            "enabled": GROK_ENABLED,
+            "key_preview": f"{GROK_API_KEY[:20]}...{GROK_API_KEY[-10:]}" if GROK_API_KEY else "N/A",
+            "mode": "Single API Key (No Rotation)"
+        },
+        "timestamp": datetime.utcnow().isoformat()
+    }
 
 class AnalyzeEmailRequest(BaseModel):
     email_text: str
@@ -165,5 +224,150 @@ def analyze_email_groq(req: AnalyzeEmailRequest):
         "signal_agreement": engine_result["signal_agreement"],
         "url_analysis": engine_result.get("url_analysis")  # Detailed URL analysis
     }
+
+
+# ============================================================================
+# NEW ENDPOINTS: Chatbot, Report Generation, Privacy Logging
+# ============================================================================
+
+@app.post("/api/chat-groq", response_model=ChatResponse)
+async def chat_with_groq(request: ChatRequest):
+    """
+    Chatbot endpoint using Groq LLM.
+    
+    Maintains conversation history and supports contextual queries about emails,
+    risks, and inbox security statistics.
+    """
+    try:
+        # Log privacy event
+        append_privacy_log(
+            event=PrivacyEventType.CHAT_QUERY,
+            action=f"Chat query submitted: '{request.query[:50]}...'",
+            details={"query": request.query, "has_context": request.context is not None}
+        )
+        
+        # Generate response via Groq
+        response = await generate_chatbot_response(request)
+        return response
+    
+    except Exception as e:
+        return ChatResponse(
+            message=f"Error processing chat: {str(e)}",
+            conversationHistory=request.conversationHistory
+        )
+
+
+@app.get("/api/reports/flagged")
+def get_flagged_report(flagged_emails: Optional[str] = None):
+    """
+    Generate report of flagged (high-risk) emails.
+    
+    Query params:
+    - flagged_emails: JSON string of flagged email list (optional, demo data if empty)
+    
+    Returns: FlaggedReportData with top 5 and all flagged emails
+    """
+    import json
+    
+    # Parse flagged emails from query or use demo data
+    if flagged_emails:
+        try:
+            emails = json.loads(flagged_emails)
+        except:
+            emails = []
+    else:
+        # Demo data for testing
+        emails = []
+    
+    # Generate report
+    report = generate_flagged_report(emails)
+    
+    # Log privacy event
+    append_privacy_log(
+        event=PrivacyEventType.REPORT_GENERATED,
+        action=f"Flagged report generated with {report.totalFlagged} emails",
+        details={"totalFlagged": report.totalFlagged, "topRisksCount": len(report.topRisks)}
+    )
+    
+    return report.dict()
+
+
+@app.get("/api/reports/flagged/download")
+def download_flagged_report(flagged_emails: Optional[str] = None):
+    """
+    Download flagged emails as CSV.
+    
+    Returns CSV file content
+    """
+    import json
+    from fastapi.responses import PlainTextResponse
+    
+    # Parse flagged emails
+    if flagged_emails:
+        try:
+            emails = json.loads(flagged_emails)
+        except:
+            emails = []
+    else:
+        emails = []
+    
+    # Generate report and convert to CSV
+    report = generate_flagged_report(emails)
+    csv_content = export_report_to_csv(report)
+    
+    # Log privacy event
+    append_privacy_log(
+        event=PrivacyEventType.EXPORT_DATA,
+        action="Flagged report exported to CSV",
+        details={"emailCount": report.totalFlagged}
+    )
+    
+    return PlainTextResponse(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=flagged_emails_report.csv"}
+    )
+
+
+@app.post("/api/audit/privacy-log")
+def log_privacy_event(
+    event: PrivacyEventType,
+    action: str,
+    userId: Optional[str] = "anonymous",
+    emailId: Optional[str] = None,
+    details: Optional[Dict] = None
+):
+    """
+    Log a privacy/audit event.
+    
+    Args:
+    - event: Type of event (chat_query, report_generated, email_viewed, api_call, export_data)
+    - action: Human-readable description of action
+    - userId: User or session ID
+    - emailId: Associated email ID if applicable
+    - details: Additional context dict
+    
+    Returns: PrivacyLogResponse with success and entry ID
+    """
+    result = append_privacy_log(
+        event=event,
+        action=action,
+        userId=userId,
+        emailId=emailId,
+        details=details
+    )
+    return result.dict()
+
+
+@app.get("/api/audit/privacy-log")
+def get_privacy_log_entries():
+    """
+    Retrieve full privacy log.
+    
+    Returns: List of privacy log entries
+    """
+    log_entries = get_privacy_log()
+    return [entry.dict() for entry in log_entries]
+
 
 

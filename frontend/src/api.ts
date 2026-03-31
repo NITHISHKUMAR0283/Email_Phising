@@ -52,4 +52,36 @@ export async function logout() {
   window.location.href = endpoint;
 }
 
+// Chat with Groq LLM
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp?: string;
+}
+
+interface ChatRequest {
+  query: string;
+  conversationHistory?: ChatMessage[];
+  context?: Record<string, any>;
+}
+
+interface ChatResponse {
+  message: string;
+  conversationHistory?: ChatMessage[];
+}
+
+export async function chatWithGroq(request: ChatRequest): Promise<ChatResponse> {
+  const endpoint = `${API_BASE_URL}/api/chat-groq`;
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request)
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.detail || 'Failed to chat with Groq');
+  }
+  return res.json();
+}
+
 
