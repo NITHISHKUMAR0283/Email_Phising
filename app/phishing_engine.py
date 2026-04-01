@@ -49,7 +49,7 @@ print(f"Using device: {DEVICE}")
 URL_MODEL_ID = "CrabInHoney/urlbert-tiny-v4-phishing-classifier"
 DOMAIN_MODEL_ID = "distilbert-base-uncased-finetuned-sst-2-english"
 INTENT_MODEL_ID = "mrm8488/bert-tiny-finetuned-sms-spam-detection"
-TEXT_MODEL_ID = "mrm8488/bert-tiny-finetuned-sms-spam-detection"  # Proven phishing/spam model
+TEXT_MODEL_ID = "mrm8488/bert-tiny-finetuned-sms-spam-detection" 
 
 # Lazy load models - None until first use
 url_tokenizer: Optional[AutoTokenizer] = None
